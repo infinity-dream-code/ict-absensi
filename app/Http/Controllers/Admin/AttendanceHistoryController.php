@@ -1,0 +1,93 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use App\Models\Attendance;
+use App\Models\User;
+use Carbon\Carbon;
+
+class AttendanceHistoryController extends Controller
+{
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            if (!Auth::check() || Auth::user()->role !== 'admin') {
+                return redirect()->route('admin.login');
+            }
+            return $next($request);
+        });
+    }
+
+    public function index(Request $request)
+    {
+        $query = Attendance::with('user')->orderBy('attendance_date', 'desc')->orderBy('check_in', 'desc');
+
+        // Filter by date
+        if ($request->filled('date_from')) {
+            $query->whereDate('attendance_date', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('attendance_date', '<=', $request->date_to);
+        }
+
+        // Filter by work type
+        if ($request->filled('work_type') && $request->work_type !== 'all') {
+            $query->where('work_type', $request->work_type);
+        }
+
+        // Search by name or NIK
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->whereHas('user', function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('nik', 'like', "%{$search}%");
+            });
+        }
+
+        // Get all attendances first
+        $allAttendances = $query->get();
+        
+        // Group by date
+        $groupedByDate = $allAttendances->groupBy(function($attendance) {
+            return Carbon::parse($attendance->attendance_date)->format('Y-m-d');
+        });
+        
+        // Get unique dates and sort descending
+        $dates = $groupedByDate->keys()->sortDesc()->values();
+        
+        // Paginate dates (per day)
+        $perPage = 10; // 10 hari per halaman
+        $currentPage = $request->get('page', 1);
+        $offset = ($currentPage - 1) * $perPage;
+        $datesForPage = $dates->slice($offset, $perPage);
+        
+        // Get attendances for these dates only
+        $attendances = collect();
+        foreach ($datesForPage as $date) {
+            if ($groupedByDate->has($date)) {
+                $attendances = $attendances->merge($groupedByDate->get($date));
+            }
+        }
+        
+        // Sort by date desc, then by check_in desc
+        $attendances = $attendances->sortByDesc(function($attendance) {
+            return Carbon::parse($attendance->attendance_date)->format('Y-m-d') . ' ' . 
+                   ($attendance->check_in ? Carbon::parse($attendance->check_in)->format('H:i:s') : '00:00:00');
+        })->values();
+
+        // Create paginator manually
+        $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
+            $datesForPage->values(),
+            $dates->count(),
+            $perPage,
+            $currentPage,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
+        return view('admin.attendance-history.index', compact('attendances', 'paginator', 'datesForPage'));
+    }
+}
