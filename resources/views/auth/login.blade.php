@@ -290,4 +290,29 @@
         </div>
     </div>
 </div>
+
+<script>
+    // Refresh CSRF token saat halaman login di-load
+    // Ini penting untuk memastikan token fresh setelah logout
+    window.addEventListener('DOMContentLoaded', function() {
+        fetch('/csrf-token', {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        }).then(response => response.json())
+          .then(data => {
+              if (data.token) {
+                  document.querySelector('meta[name="csrf-token"]').setAttribute('content', data.token);
+                  document.querySelectorAll('input[name="_token"]').forEach(input => {
+                      input.value = data.token;
+                  });
+              }
+          }).catch(() => {});
+        
+        // Clear session storage yang mungkin tersisa
+        sessionStorage.clear();
+    });
+</script>
 @endsection

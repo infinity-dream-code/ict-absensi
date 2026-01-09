@@ -48,6 +48,13 @@ class ProfileController extends Controller
             'password' => Hash::make($request->new_password)
         ]);
 
+        // Clear any existing flash messages
+        $request->session()->forget(['success', 'error']);
+        
+        // Regenerate session dan CSRF token setelah perubahan password
+        $request->session()->regenerate();
+        $request->session()->regenerateToken();
+
         return redirect()->route('profile.change-password')->with('success', 'Password berhasil diubah!');
     }
 }

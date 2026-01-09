@@ -2,9 +2,25 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Admin Dashboard')</title>
+    <meta name="theme-color" content="#667eea">
+    <title>@yield('title', 'Admin Dashboard - Absensi ICT')</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Absensi ICT">
+    <meta name="description" content="Admin Panel Sistem Absensi Karyawan ICT">
+    <meta name="application-name" content="Absensi ICT">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" href="{{ asset('logo-512.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('logo-512.png') }}">
     
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -296,10 +312,10 @@
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="logo-wrapper">
-                <div class="logo-icon">
-                    <i class="fas fa-shield-alt"></i>
+                <div class="logo-icon" style="background: transparent; padding: 0;">
+                    <img src="{{ asset('logo-512.png') }}" alt="Logo" style="width: 32px; height: 32px; border-radius: 8px;">
                 </div>
-                <span class="logo-text">Admin Panel</span>
+                <span class="logo-text">Absensi ICT</span>
             </div>
             <button class="close-sidebar" id="closeSidebar">
                 <i class="fas fa-times"></i>
@@ -339,9 +355,9 @@
                     <div class="user-role">Administrator</div>
                 </div>
             </div>
-            <form action="{{ route('admin.logout') }}" method="POST">
+            <form id="admin-logout-form" action="{{ route('admin.logout') }}" method="POST">
                 @csrf
-                <button type="submit" class="btn-logout">
+                <button type="button" id="admin-logout-btn" class="btn-logout">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>Logout</span>
                 </button>
@@ -413,6 +429,186 @@
         
         // Setup CSRF token
         axios.defaults.headers.common['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        // Function untuk refresh CSRF token
+        function refreshCsrfToken() {
+            return fetch('/csrf-token', {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }).then(response => response.json())
+              .then(data => {
+                  if (data.token) {
+                      document.querySelector('meta[name="csrf-token"]').setAttribute('content', data.token);
+                      axios.defaults.headers.common['X-CSRF-TOKEN'] = data.token;
+                      document.querySelectorAll('input[name="_token"]').forEach(input => {
+                          input.value = data.token;
+                      });
+                  }
+                  return data.token;
+              }).catch(() => {
+                  return null;
+              });
+        }
+
+        // Refresh CSRF token saat halaman load dan setelah login/logout
+        function initializeCsrfToken() {
+            return refreshCsrfToken().then(() => {
+                // Update semua form token
+                document.querySelectorAll('input[name="_token"]').forEach(input => {
+                    const metaToken = document.querySelector('meta[name="csrf-token"]');
+                    if (metaToken) {
+                        input.value = metaToken.getAttribute('content');
+                    }
+                });
+                return true;
+            });
+        }
+        
+        // Refresh token hanya saat diperlukan (tidak force refresh)
+        // Karena sekarang tidak regenerate session setelah login,
+        // token di meta tag sudah match dengan session
+        window.addEventListener('DOMContentLoaded', function() {
+            // Sync form token dengan meta tag (tidak perlu refresh dari server)
+            const metaToken = document.querySelector('meta[name="csrf-token"]');
+            if (metaToken) {
+                const token = metaToken.getAttribute('content');
+                document.querySelectorAll('input[name="_token"]').forEach(input => {
+                    input.value = token;
+                });
+                axios.defaults.headers.common['X-CSRF-TOKEN'] = token;
+            }
+        });
+
+        // Handle 419 error (Page Expired) dengan refresh halaman
+        window.addEventListener('unhandledrejection', function(event) {
+            if (event.reason && event.reason.response && event.reason.response.status === 419) {
+                // Jika 419 error, refresh halaman untuk mendapatkan token baru
+                window.location.reload();
+            }
+        });
+
+        // Intercept form submission untuk memastikan token valid
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            if (form.tagName === 'FORM' && form.method.toUpperCase() === 'POST') {
+                // Skip untuk logout form karena sudah dihandle khusus
+                if (form.id === 'admin-logout-form') {
+                    e.preventDefault();
+                    return;
+                }
+                
+                const tokenInput = form.querySelector('input[name="_token"]');
+                const metaToken = document.querySelector('meta[name="csrf-token"]');
+                
+                // Pastikan token form sama dengan token meta
+                if (tokenInput && metaToken && tokenInput.value !== metaToken.getAttribute('content')) {
+                    tokenInput.value = metaToken.getAttribute('content');
+                }
+            }
+        }, false);
+
+        // Handle admin logout dengan AJAX dan retry mechanism
+        const adminLogoutBtn = document.getElementById('admin-logout-btn');
+        if (adminLogoutBtn) {
+            adminLogoutBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                const form = document.getElementById('admin-logout-form');
+                const tokenInput = form.querySelector('input[name="_token"]');
+                const metaToken = document.querySelector('meta[name="csrf-token"]');
+                
+                // Pastikan token terbaru
+                if (tokenInput && metaToken) {
+                    tokenInput.value = metaToken.getAttribute('content');
+                }
+                
+                // Fungsi untuk logout
+                function performLogout(retryCount = 0) {
+                    const formData = new FormData(form);
+                    
+                    fetch(form.action, {
+                        method: 'POST',
+                        body: formData,
+                        credentials: 'same-origin',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => {
+                        if (response.status === 419 && retryCount < 2) {
+                            // Jika 419, refresh token dan retry
+                            return refreshCsrfToken().then(() => {
+                                // Update token di form
+                                const newToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                                formData.set('_token', newToken);
+                                return performLogout(retryCount + 1);
+                            });
+                        }
+                        
+                        if (response.redirected) {
+                            // Clear storage sebelum redirect
+                            sessionStorage.clear();
+                            localStorage.clear();
+                            window.location.href = response.url;
+                        } else if (response.ok) {
+                            return response.json().then(data => {
+                                // Clear storage sebelum redirect
+                                sessionStorage.clear();
+                                localStorage.clear();
+                                if (data.redirect) {
+                                    window.location.href = data.redirect;
+                                } else {
+                                    window.location.href = '{{ route("admin.login") }}';
+                                }
+                            });
+                        } else {
+                            // Jika masih error, gunakan GET fallback
+                            sessionStorage.clear();
+                            localStorage.clear();
+                            window.location.href = '{{ route("admin.logout") }}?fallback=1';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Logout error:', error);
+                        // Fallback ke GET logout
+                        window.location.href = '{{ route("admin.logout") }}?fallback=1';
+                    });
+                }
+                
+                performLogout();
+            });
+        }
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Unregister service worker lama yang mungkin cache HTML dengan token lama
+                navigator.serviceWorker.getRegistrations().then((registrations) => {
+                    for (let registration of registrations) {
+                        // Unregister service worker dengan cache name lama
+                        if (registration.active) {
+                            registration.unregister().then(() => {
+                                console.log('Old service worker unregistered');
+                            });
+                        }
+                    }
+                    
+                    // Register service worker baru
+                    navigator.serviceWorker.register('{{ asset("sw.js") }}?v=2')
+                        .then((registration) => {
+                            console.log('Service Worker registered successfully:', registration.scope);
+                            // Force update service worker
+                            registration.update();
+                        })
+                        .catch((error) => {
+                            console.log('Service Worker registration failed:', error);
+                        });
+                });
+            });
+        }
     </script>
     
     @yield('scripts')

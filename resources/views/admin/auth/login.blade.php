@@ -2,9 +2,25 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Admin Login - Sistem Absensi</title>
+    <meta name="theme-color" content="#667eea">
+    <title>Admin Login - Absensi ICT</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Absensi ICT">
+    <meta name="description" content="Admin Login Sistem Absensi Karyawan ICT">
+    <meta name="application-name" content="Absensi ICT">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" href="{{ asset('logo-512.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('logo-512.png') }}">
     
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -194,11 +210,11 @@
     <div class="login-container">
         <div class="login-card">
             <div class="login-header">
-                <div class="icon-wrapper">
-                    <i class="fas fa-shield-alt"></i>
+                <div class="icon-wrapper" style="background: transparent; box-shadow: none;">
+                    <img src="{{ asset('logo-512.png') }}" alt="Logo" style="width: 80px; height: 80px; border-radius: 50%;">
                 </div>
                 <h2 class="login-title">Admin Login</h2>
-                <p class="login-subtitle">Masuk ke panel administrasi</p>
+                <p class="login-subtitle">Absensi ICT - Panel Administrasi</p>
             </div>
 
             @if($errors->any())
@@ -268,6 +284,34 @@
                 showConfirmButton: false
             });
         @endif
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Unregister service worker lama yang mungkin cache HTML dengan token lama
+                navigator.serviceWorker.getRegistrations().then((registrations) => {
+                    for (let registration of registrations) {
+                        // Unregister service worker dengan cache name lama
+                        if (registration.active) {
+                            registration.unregister().then(() => {
+                                console.log('Old service worker unregistered');
+                            });
+                        }
+                    }
+                    
+                    // Register service worker baru
+                    navigator.serviceWorker.register('{{ asset("sw.js") }}?v=2')
+                        .then((registration) => {
+                            console.log('Service Worker registered successfully:', registration.scope);
+                            // Force update service worker
+                            registration.update();
+                        })
+                        .catch((error) => {
+                            console.log('Service Worker registration failed:', error);
+                        });
+                });
+            });
+        }
     </script>
 </body>
 </html>

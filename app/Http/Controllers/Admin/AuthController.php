@@ -30,8 +30,16 @@ class AuthController extends Controller
             ->first();
 
         if ($user && $user->role === 'admin' && Hash::check($request->password, $user->password)) {
+            // Login dulu dengan token yang valid
             Auth::login($user, $request->filled('remember'));
-            $request->session()->regenerate();
+            
+            // JANGAN regenerate session/token setelah login karena akan menyebabkan
+            // token di meta tag tidak match dengan token baru di session
+            // Regenerate hanya saat logout untuk security
+            
+            // Clear any existing flash messages
+            $request->session()->forget(['success', 'error']);
+            
             // Clear intended URL to prevent redirect to attendance page
             $request->session()->forget('url.intended');
             return redirect()->route('admin.dashboard')->with('success', 'Login berhasil!');
@@ -44,9 +52,33 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
+        // Handle GET fallback untuk logout jika CSRF token expired
+        if ($request->method() === 'GET' && $request->has('fallback')) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+            return redirect()->route('admin.login')->with('success', 'Logout berhasil!');
+        }
+        
+        // Normal POST logout
         Auth::logout();
+        
+        // Invalidate dan flush session setelah logout
         $request->session()->invalidate();
+        $request->session()->flush();
+        
+        // Regenerate token setelah invalidate untuk session baru
         $request->session()->regenerateToken();
+        
+        // Return JSON jika AJAX request
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Logout berhasil!',
+                'redirect' => route('admin.login')
+            ]);
+        }
+        
         return redirect()->route('admin.login')->with('success', 'Logout berhasil!');
     }
 }

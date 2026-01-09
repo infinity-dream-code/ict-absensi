@@ -24,10 +24,27 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
+// CSRF Token Route untuk auto-refresh
+Route::get('/csrf-token', function () {
+    return response()->json(['token' => csrf_token()]);
+});
+
+// Route untuk clear session message setelah ditampilkan
+Route::post('/clear-session-message', function (Illuminate\Http\Request $request) {
+    $type = $request->input('type');
+    if ($type === 'success') {
+        $request->session()->forget('success');
+    } elseif ($type === 'error') {
+        $request->session()->forget('error');
+    }
+    return response()->json(['success' => true]);
+});
+
 // Authentication Routes
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::get('/logout', [AuthController::class, 'logout'])->name('logout.get'); // Fallback untuk expired token
 
 // Attendance Routes (Protected - Only for Employees)
 Route::middleware(['auth'])->group(function () {
@@ -46,6 +63,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/ict-login', [AdminAuthController::class, 'showLoginForm'])->name('login');
     Route::post('/ict-login', [AdminAuthController::class, 'login']);
     Route::post('/logout', [AdminAuthController::class, 'logout'])->name('logout');
+    Route::get('/logout', [AdminAuthController::class, 'logout'])->name('logout.get'); // Fallback untuk expired token
 
     // Admin Protected Routes
     Route::middleware('auth')->group(function () {
