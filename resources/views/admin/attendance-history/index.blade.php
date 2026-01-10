@@ -419,10 +419,14 @@
                     <td>
                         @if($attendance->work_type === 'WFO')
                             @if($attendance->latitude && $attendance->longitude)
-                                @if($attendance->location_valid)
-                                    <span style="color: #059669; font-weight: 600;">✓ Valid</span>
+                                @if($attendance->location_name)
+                                    <span style="color: #374151; font-weight: 500;">{{ $attendance->location_name }}</span>
                                 @else
-                                    <span style="color: #dc2626; font-weight: 600;">✗ Di Luar Jangkauan</span>
+                                    @if($attendance->location_valid)
+                                        <span style="color: #059669; font-weight: 600;">✓ Valid</span>
+                                    @else
+                                        <span style="color: #dc2626; font-weight: 600;">✗ Di Luar Jangkauan</span>
+                                    @endif
                                 @endif
                             @else
                                 <span style="color: #9ca3af;">-</span>
@@ -436,7 +440,7 @@
                             @if($attendance->latitude && $attendance->longitude)
                                 <button type="button" 
                                         class="btn-view-location" 
-                                        onclick="viewLocation({{ $attendance->latitude }}, {{ $attendance->longitude }}, '{{ $attendance->user->name }}', '{{ \Carbon\Carbon::parse($attendance->check_in)->setTimezone('Asia/Jakarta')->format('H:i:s') }}', {{ $attendance->location_valid ? 'true' : 'false' }})">
+                                        onclick="viewLocation({{ $attendance->latitude }}, {{ $attendance->longitude }}, '{{ $attendance->user->name }}', '{{ \Carbon\Carbon::parse($attendance->check_in)->setTimezone('Asia/Jakarta')->format('H:i:s') }}', {{ $attendance->location_valid ? 'true' : 'false' }}, '{{ addslashes($attendance->location_name ?? '') }}')">
                                     <i class="fas fa-map-marker-alt"></i> Lokasi
                                 </button>
                             @endif
@@ -506,6 +510,7 @@
                 <p><strong>Nama:</strong> <span id="locationEmployeeName"></span></p>
                 <p><strong>Waktu Check-In:</strong> <span id="locationCheckInTime"></span></p>
                 <p><strong>Status Lokasi:</strong> <span id="locationStatus"></span></p>
+                <p id="locationNameContainer" style="display: none;"><strong>Lokasi Check-In:</strong> <span id="locationName"></span></p>
             </div>
         </div>
     </div>
@@ -519,12 +524,22 @@
     let locationMap;
     let locationMarker;
     
-    function viewLocation(lat, lng, employeeName, checkInTime, locationValid) {
+    function viewLocation(lat, lng, employeeName, checkInTime, locationValid, locationName) {
         document.getElementById('locationEmployeeName').textContent = employeeName;
         document.getElementById('locationCheckInTime').textContent = checkInTime;
         document.getElementById('locationStatus').innerHTML = locationValid 
             ? '<span style="color: #059669; font-weight: 600;">✓ Valid</span>' 
             : '<span style="color: #dc2626; font-weight: 600;">✗ Di Luar Jangkauan</span>';
+        
+        // Show location name if available
+        const locationNameContainer = document.getElementById('locationNameContainer');
+        const locationNameSpan = document.getElementById('locationName');
+        if (locationName && locationName.trim() !== '') {
+            locationNameSpan.textContent = locationName;
+            locationNameContainer.style.display = 'block';
+        } else {
+            locationNameContainer.style.display = 'none';
+        }
         
         document.getElementById('locationModal').style.display = 'flex';
         
@@ -557,13 +572,16 @@
             })
         }).addTo(locationMap);
         
-        locationMarker.bindPopup(`
-            <div style="padding: 4px;">
+        let popupContent = `<div style="padding: 4px;">
                 <strong>${employeeName}</strong><br>
                 Check-In: ${checkInTime}<br>
-                Status: ${locationValid ? '✓ Valid' : '✗ Di Luar Jangkauan'}
-            </div>
-        `).openPopup();
+                Status: ${locationValid ? '✓ Valid' : '✗ Di Luar Jangkauan'}`;
+        if (locationName && locationName.trim() !== '') {
+            popupContent += `<br>Lokasi: ${locationName}`;
+        }
+        popupContent += `</div>`;
+        
+        locationMarker.bindPopup(popupContent).openPopup();
     }
     
     function closeLocationModal() {

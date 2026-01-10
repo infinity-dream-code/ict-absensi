@@ -20,6 +20,7 @@ class Attendance extends Model
         'latitude',
         'longitude',
         'location_valid',
+        'location_name',
     ];
 
     protected $casts = [

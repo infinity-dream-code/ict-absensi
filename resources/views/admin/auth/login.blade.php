@@ -186,6 +186,36 @@
             margin-bottom: 4px;
         }
         
+        .btn-user-link {
+            width: 100%;
+            padding: 14px 18px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #667eea;
+            background: transparent;
+            border: 2px solid #667eea;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            text-decoration: none;
+            box-sizing: border-box;
+        }
+        
+        .btn-user-link:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-user-link:active {
+            transform: translateY(0);
+        }
+        
         @media (max-width: 640px) {
             .login-card {
                 padding: 40px 30px;
@@ -268,6 +298,13 @@
                     <span>Login</span>
                 </button>
             </form>
+
+            <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+                <a href="{{ route('login') }}" class="btn-user-link">
+                    <i class="fas fa-user"></i>
+                    <span>Login User</span>
+                </a>
+            </div>
         </div>
     </div>
     
