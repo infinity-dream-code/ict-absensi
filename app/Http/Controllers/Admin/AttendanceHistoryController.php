@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Attendance;
 use App\Models\User;
 use Carbon\Carbon;
+use App\Exports\AttendanceExport;
+use App\Exports\MonthlyAttendanceSummaryExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class AttendanceHistoryController extends Controller
 {
@@ -32,6 +35,16 @@ class AttendanceHistoryController extends Controller
         }
         if ($request->filled('date_to')) {
             $query->whereDate('attendance_date', '<=', $request->date_to);
+        }
+
+        // Filter by year and month
+        if ($request->filled('year') && $request->filled('month')) {
+            $query->whereYear('attendance_date', $request->year)
+                  ->whereMonth('attendance_date', $request->month);
+        } elseif ($request->filled('year')) {
+            $query->whereYear('attendance_date', $request->year);
+        } elseif ($request->filled('month')) {
+            $query->whereMonth('attendance_date', $request->month);
         }
 
         // Filter by work type
@@ -89,5 +102,51 @@ class AttendanceHistoryController extends Controller
         );
 
         return view('admin.attendance-history.index', compact('attendances', 'paginator', 'datesForPage'));
+    }
+
+    public function export(Request $request)
+    {
+        $filters = [
+            'date_from' => $request->date_from,
+            'date_to' => $request->date_to,
+            'year' => $request->year,
+            'month' => $request->month,
+            'work_type' => $request->work_type,
+            'search' => $request->search,
+        ];
+
+        $filename = 'Export_Absensi_' . date('Y-m-d_His') . '.xlsx';
+        
+        return Excel::download(new AttendanceExport($filters), $filename);
+    }
+
+    public function exportMonthlySummary(Request $request)
+    {
+        $year = $request->filled('year') && $request->year !== '' ? (int) $request->year : null;
+        $month = $request->filled('month') && $request->month !== '' ? (int) $request->month : null;
+        
+        // Validasi jika dipilih harus valid
+        if ($year !== null && ($year < 2020 || $year > 2100)) {
+            return back()->withErrors(['year' => 'Tahun harus antara 2020 dan 2100']);
+        }
+        
+        if ($month !== null && ($month < 1 || $month > 12)) {
+            return back()->withErrors(['month' => 'Bulan harus antara 1 dan 12']);
+        }
+        
+        // Generate filename
+        if ($year && $month) {
+            $monthName = Carbon::create($year, $month, 1)->locale('id')->isoFormat('MMMM_YYYY');
+            $filename = 'Rekap_Absensi_' . $monthName . '.xlsx';
+        } elseif ($year) {
+            $filename = 'Rekap_Absensi_Tahun_' . $year . '.xlsx';
+        } elseif ($month) {
+            $monthName = Carbon::create(null, $month, 1)->locale('id')->isoFormat('MMMM');
+            $filename = 'Rekap_Absensi_Bulan_' . $monthName . '.xlsx';
+        } else {
+            $filename = 'Rekap_Absensi_Semua.xlsx';
+        }
+        
+        return Excel::download(new MonthlyAttendanceSummaryExport($year, $month), $filename);
     }
 }

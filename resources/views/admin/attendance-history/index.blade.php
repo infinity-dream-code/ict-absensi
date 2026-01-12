@@ -80,6 +80,47 @@
         box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
     }
     
+    .btn-export {
+        padding: 10px 20px;
+        background: #10b981;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+    
+    .btn-export:hover {
+        background: #059669;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+    
+    .btn-export-monthly {
+        padding: 10px 20px;
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .btn-export-monthly:hover {
+        background: #2563eb;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    
     .table-card {
         background: white;
         border-radius: 12px;
@@ -332,6 +373,28 @@
         </div>
         
         <div class="form-group">
+            <label for="year" class="form-label">Tahun</label>
+            <select id="year" name="year" class="form-select">
+                <option value="">Semua</option>
+                @for($y = date('Y'); $y >= 2020; $y--)
+                    <option value="{{ $y }}" {{ request('year') == $y ? 'selected' : '' }}>{{ $y }}</option>
+                @endfor
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="month" class="form-label">Bulan</label>
+            <select id="month" name="month" class="form-select">
+                <option value="">Semua</option>
+                @for($m = 1; $m <= 12; $m++)
+                    <option value="{{ $m }}" {{ request('month') == $m ? 'selected' : '' }}>
+                        {{ \Carbon\Carbon::create(null, $m, 1)->locale('id')->isoFormat('MMMM') }}
+                    </option>
+                @endfor
+            </select>
+        </div>
+        
+        <div class="form-group">
             <label for="work_type" class="form-label">Jenis Kerja</label>
             <select id="work_type" name="work_type" class="form-select">
                 <option value="all" {{ request('work_type') == 'all' || !request('work_type') ? 'selected' : '' }}>Semua</option>
@@ -358,6 +421,17 @@
             </button>
         </div>
     </form>
+    
+    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e7eb; display: flex; gap: 12px; flex-wrap: wrap;">
+        <a href="{{ route('admin.attendance-history.export', request()->all()) }}" class="btn-export">
+            <i class="fas fa-file-excel"></i>
+            <span>Export Absensi</span>
+        </a>
+        <button type="button" class="btn-export-monthly" onclick="exportMonthly()">
+            <i class="fas fa-file-excel"></i>
+            <span>Rekap Absensi Bulanan</span>
+        </button>
+    </div>
 </div>
 
 <!-- Table Card -->
@@ -608,6 +682,18 @@
         if (event.target == imageModal) {
             closeImageModal();
         }
+    }
+    
+    // Export Monthly Summary
+    function exportMonthly() {
+        const yearSelect = document.getElementById('year');
+        const monthSelect = document.getElementById('month');
+        const year = yearSelect ? yearSelect.value : '';
+        const month = monthSelect ? monthSelect.value : '';
+        
+        // Bisa export meskipun "Semua" dipilih
+        const url = '{{ route("admin.attendance-history.export-monthly") }}?year=' + (year || '') + '&month=' + (month || '');
+        window.location.href = url;
     }
 </script>
 @endsection
