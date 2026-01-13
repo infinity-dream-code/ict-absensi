@@ -3,6 +3,8 @@
 namespace App\Exports;
 
 use App\Models\Attendance;
+use App\Models\Leave;
+use App\Models\Holiday;
 use App\Models\Setting;
 use App\Models\User;
 use Maatwebsite\Excel\Concerns\FromCollection;
@@ -47,18 +49,57 @@ class MonthlyAttendanceSummaryExport implements FromCollection, WithHeadings, Wi
 
         $attendances = $query->get();
 
+        // Get all leaves with filters
+        $leaveQuery = Leave::with('user');
+        if ($this->year !== null) {
+            $leaveQuery->whereYear('leave_date', $this->year);
+        }
+        if ($this->month !== null) {
+            $leaveQuery->whereMonth('leave_date', $this->month);
+        }
+        $leaves = $leaveQuery->get();
+
+        // Get holidays for the period
+        $holidayQuery = Holiday::query();
+        if ($this->year !== null) {
+            $holidayQuery->where('year', $this->year);
+        }
+        if ($this->month !== null) {
+            $holidayQuery->whereMonth('date', $this->month);
+        }
+        $holidays = $holidayQuery->pluck('date')->map(function($date) {
+            return Carbon::parse($date)->format('Y-m-d');
+        })->toArray();
+
+        // Determine date range
+        $startDate = null;
+        $endDate = null;
+        if ($this->year !== null && $this->month !== null) {
+            $startDate = Carbon::create($this->year, $this->month, 1);
+            $endDate = $startDate->copy()->endOfMonth();
+        } elseif ($this->year !== null) {
+            $startDate = Carbon::create($this->year, 1, 1);
+            $endDate = $startDate->copy()->endOfYear();
+        }
+
         // Process data per user
         $summary = collect();
 
         foreach ($users as $user) {
             $userAttendances = $attendances->where('user_id', $user->id);
+            $userLeaves = $leaves->where('user_id', $user->id);
 
             $tepatWaktu = 0;
             $terlambat = 0;
             $wfo = 0;
             $wfh = 0;
             $wfa = 0;
+            $cuti = 0;
+            $izin = 0;
+            $sakit = 0;
+            $alpha = 0;
 
+            // Count attendances
             foreach ($userAttendances as $attendance) {
                 // Count by work type
                 if ($attendance->work_type === 'WFO') {
@@ -82,6 +123,47 @@ class MonthlyAttendanceSummaryExport implements FromCollection, WithHeadings, Wi
                 }
             }
 
+            // Count leaves
+            foreach ($userLeaves as $leave) {
+                if ($leave->leave_type === 'cuti') {
+                    $cuti++;
+                } elseif ($leave->leave_type === 'izin') {
+                    $izin++;
+                } elseif ($leave->leave_type === 'sakit') {
+                    $sakit++;
+                }
+            }
+
+            // Calculate alpha (only if we have date range)
+            if ($startDate && $endDate) {
+                $attendanceDates = $userAttendances->pluck('attendance_date')->map(function($date) {
+                    return Carbon::parse($date)->format('Y-m-d');
+                })->toArray();
+
+                $leaveDates = $userLeaves->pluck('leave_date')->map(function($date) {
+                    return Carbon::parse($date)->format('Y-m-d');
+                })->toArray();
+
+                $currentDate = $startDate->copy();
+                while ($currentDate->lte($endDate)) {
+                    $dateStr = $currentDate->format('Y-m-d');
+                    $dayOfWeek = $currentDate->dayOfWeek; // 0 = Sunday, 6 = Saturday
+
+                    // Skip weekend (Saturday = 6, Sunday = 0)
+                    if ($dayOfWeek != 6 && $dayOfWeek != 0) {
+                        // Skip holidays
+                        if (!in_array($dateStr, $holidays)) {
+                            // If no attendance and no leave, count as alpha
+                            if (!in_array($dateStr, $attendanceDates) && !in_array($dateStr, $leaveDates)) {
+                                $alpha++;
+                            }
+                        }
+                    }
+
+                    $currentDate->addDay();
+                }
+            }
+
             $summary->push([
                 'user' => $user,
                 'tepat_waktu' => $tepatWaktu,
@@ -89,6 +171,10 @@ class MonthlyAttendanceSummaryExport implements FromCollection, WithHeadings, Wi
                 'wfo' => $wfo,
                 'wfh' => $wfh,
                 'wfa' => $wfa,
+                'cuti' => $cuti,
+                'izin' => $izin,
+                'sakit' => $sakit,
+                'alpha' => $alpha,
             ]);
         }
 
@@ -107,7 +193,11 @@ class MonthlyAttendanceSummaryExport implements FromCollection, WithHeadings, Wi
             'Terlambat',
             'WFO',
             'WFH',
-            'WFA'
+            'WFA',
+            'Cuti',
+            'Izin',
+            'Sakit',
+            'Alpha'
         ];
     }
 
@@ -125,6 +215,10 @@ class MonthlyAttendanceSummaryExport implements FromCollection, WithHeadings, Wi
             $row['wfo'],
             $row['wfh'],
             $row['wfa'],
+            $row['cuti'],
+            $row['izin'],
+            $row['sakit'],
+            $row['alpha'],
         ];
     }
 

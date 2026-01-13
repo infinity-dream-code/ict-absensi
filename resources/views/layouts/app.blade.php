@@ -266,6 +266,10 @@
                         <i class="fas fa-user" style="color:#9ca3af; font-size:13px;"></i>
                         <span>{{ auth()->user()->name }}</span>
                     </div>
+                    <a href="{{ route('leave.index') }}" class="nav-link">
+                        <i class="fas fa-calendar-times" style="font-size:13px;"></i>
+                        <span style="font-size:13px;">Perizinan</span>
+                    </a>
                     <a href="{{ route('profile.change-password') }}" class="nav-link">
                         <i class="fas fa-key" style="font-size:13px;"></i>
                         <span style="font-size:13px;">Ganti Password</span>
@@ -286,6 +290,10 @@
                         <i class="fas fa-user"></i>
                         <span>{{ auth()->user()->name }}</span>
                     </div>
+                    <a href="{{ route('leave.index') }}" class="nav-dropdown-item">
+                        <i class="fas fa-calendar-times"></i>
+                        <span>Perizinan</span>
+                    </a>
                     <a href="{{ route('profile.change-password') }}" class="nav-dropdown-item">
                         <i class="fas fa-key"></i>
                         <span>Ganti Password</span>

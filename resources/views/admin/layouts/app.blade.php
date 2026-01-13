@@ -339,9 +339,17 @@
                 <i class="fas fa-history"></i>
                 <span>History Absensi</span>
             </a>
+            <a href="{{ route('admin.leave-history.index') }}" class="nav-item {{ request()->routeIs('admin.leave-history.*') ? 'active' : '' }}">
+                <i class="fas fa-calendar-times"></i>
+                <span>History Izin</span>
+            </a>
             <a href="{{ route('admin.location.index') }}" class="nav-item {{ request()->routeIs('admin.location.*') ? 'active' : '' }}">
                 <i class="fas fa-map-marker-alt"></i>
                 <span>Set Lokasi</span>
+            </a>
+            <a href="{{ route('admin.holiday.index') }}" class="nav-item {{ request()->routeIs('admin.holiday.*') ? 'active' : '' }}">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Libur</span>
             </a>
         </nav>
         
