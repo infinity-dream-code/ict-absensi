@@ -491,8 +491,8 @@
                         @endif
                     </td>
                     <td>
-                        @if($attendance->work_type === 'WFO')
-                            @if($attendance->latitude && $attendance->longitude)
+                        @if($attendance->latitude && $attendance->longitude)
+                            @if($attendance->work_type === 'WFO')
                                 @if($attendance->location_name)
                                     <span style="color: #374151; font-weight: 500;">{{ $attendance->location_name }}</span>
                                 @else
@@ -503,7 +503,12 @@
                                     @endif
                                 @endif
                             @else
-                                <span style="color: #9ca3af;">-</span>
+                                {{-- WFA dan WFH: hanya tampilkan nama lokasi tanpa status valid --}}
+                                @if($attendance->location_name)
+                                    <span style="color: #374151; font-weight: 500;">{{ $attendance->location_name }}</span>
+                                @else
+                                    <span style="color: #6b7280;">Lokasi tersedia</span>
+                                @endif
                             @endif
                         @else
                             <span style="color: #9ca3af;">-</span>
@@ -514,7 +519,7 @@
                             @if($attendance->latitude && $attendance->longitude)
                                 <button type="button" 
                                         class="btn-view-location" 
-                                        onclick="viewLocation({{ $attendance->latitude }}, {{ $attendance->longitude }}, '{{ $attendance->user->name }}', '{{ \Carbon\Carbon::parse($attendance->check_in)->setTimezone('Asia/Jakarta')->format('H:i:s') }}', {{ $attendance->location_valid ? 'true' : 'false' }}, '{{ addslashes($attendance->location_name ?? '') }}')">
+                                        onclick="viewLocation({{ $attendance->latitude }}, {{ $attendance->longitude }}, '{{ $attendance->user->name }}', '{{ \Carbon\Carbon::parse($attendance->check_in)->setTimezone('Asia/Jakarta')->format('H:i:s') }}', '{{ $attendance->work_type }}', {{ $attendance->location_valid ? 'true' : 'false' }}, '{{ addslashes($attendance->location_name ?? '') }}')">
                                     <i class="fas fa-map-marker-alt"></i> Lokasi
                                 </button>
                             @endif
@@ -583,7 +588,7 @@
             <div class="location-info">
                 <p><strong>Nama:</strong> <span id="locationEmployeeName"></span></p>
                 <p><strong>Waktu Check-In:</strong> <span id="locationCheckInTime"></span></p>
-                <p><strong>Status Lokasi:</strong> <span id="locationStatus"></span></p>
+                <p id="locationStatusContainer" style="display: none;"><strong>Status Lokasi:</strong> <span id="locationStatus"></span></p>
                 <p id="locationNameContainer" style="display: none;"><strong>Lokasi Check-In:</strong> <span id="locationName"></span></p>
             </div>
         </div>
@@ -598,12 +603,22 @@
     let locationMap;
     let locationMarker;
     
-    function viewLocation(lat, lng, employeeName, checkInTime, locationValid, locationName) {
+    function viewLocation(lat, lng, employeeName, checkInTime, workType, locationValid, locationName) {
         document.getElementById('locationEmployeeName').textContent = employeeName;
         document.getElementById('locationCheckInTime').textContent = checkInTime;
-        document.getElementById('locationStatus').innerHTML = locationValid 
-            ? '<span style="color: #059669; font-weight: 600;">✓ Valid</span>' 
-            : '<span style="color: #dc2626; font-weight: 600;">✗ Di Luar Jangkauan</span>';
+        
+        // Show location status only for WFO
+        const locationStatusContainer = document.getElementById('locationStatusContainer');
+        const locationStatusSpan = document.getElementById('locationStatus');
+        if (workType === 'WFO') {
+            locationStatusSpan.innerHTML = locationValid 
+                ? '<span style="color: #059669; font-weight: 600;">✓ Valid</span>' 
+                : '<span style="color: #dc2626; font-weight: 600;">✗ Di Luar Jangkauan</span>';
+            locationStatusContainer.style.display = 'block';
+        } else {
+            // WFA dan WFH tidak perlu status valid
+            locationStatusContainer.style.display = 'none';
+        }
         
         // Show location name if available
         const locationNameContainer = document.getElementById('locationNameContainer');
@@ -634,7 +649,12 @@
             locationMarker.remove();
         }
         
-        const markerColor = locationValid ? 'green' : 'red';
+        // Marker color: green untuk valid/invalid (WFO), atau blue untuk WFA/WFH
+        let markerColor = 'blue'; // default untuk WFA/WFH
+        if (workType === 'WFO') {
+            markerColor = locationValid ? 'green' : 'red';
+        }
+        
         locationMarker = L.marker([lat, lng], {
             icon: L.icon({
                 iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${markerColor}.png`,
@@ -648,8 +668,13 @@
         
         let popupContent = `<div style="padding: 4px;">
                 <strong>${employeeName}</strong><br>
-                Check-In: ${checkInTime}<br>
-                Status: ${locationValid ? '✓ Valid' : '✗ Di Luar Jangkauan'}`;
+                Check-In: ${checkInTime}`;
+        
+        // Hanya tampilkan status untuk WFO
+        if (workType === 'WFO') {
+            popupContent += `<br>Status: ${locationValid ? '✓ Valid' : '✗ Di Luar Jangkauan'}`;
+        }
+        
         if (locationName && locationName.trim() !== '') {
             popupContent += `<br>Lokasi: ${locationName}`;
         }

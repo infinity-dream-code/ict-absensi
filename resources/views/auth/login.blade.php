@@ -213,8 +213,8 @@
 <div class="login-page">
     <div class="login-card">
         <div class="login-header">
-            <div class="login-icon">
-                <i class="fas fa-user-circle"></i>
+            <div class="login-icon" style="background: transparent; box-shadow: none;">
+                <img src="{{ asset('logo-512.png') }}" alt="Logo" style="width: 72px; height: 72px; border-radius: 50%;">
             </div>
             <h2 class="login-title">Login</h2>
             <p class="login-subtitle">Masuk dengan NIK dan Password</p>
