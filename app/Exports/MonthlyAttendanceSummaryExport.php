@@ -36,8 +36,8 @@ class MonthlyAttendanceSummaryExport implements FromCollection, WithHeadings, Wi
         $settings = Setting::getSettings();
         $checkInEndTime = $settings->check_in_end ?: '09:00:00';
 
-        // Get all attendances with filters
-        $query = Attendance::with('user')->whereNotNull('check_in');
+        // Get all attendances with filters (optimize: don't load user relation)
+        $query = Attendance::whereNotNull('check_in');
 
         if ($this->year !== null) {
             $query->whereYear('attendance_date', $this->year);
@@ -49,8 +49,8 @@ class MonthlyAttendanceSummaryExport implements FromCollection, WithHeadings, Wi
 
         $attendances = $query->get();
 
-        // Get all leaves with filters
-        $leaveQuery = Leave::with('user');
+        // Get all leaves with filters (optimize: don't load user relation)
+        $leaveQuery = Leave::query();
         if ($this->year !== null) {
             $leaveQuery->whereYear('leave_date', $this->year);
         }
@@ -74,33 +74,116 @@ class MonthlyAttendanceSummaryExport implements FromCollection, WithHeadings, Wi
         // Determine date range
         $startDate = null;
         $endDate = null;
+        $today = Carbon::today('Asia/Jakarta');
+        $yesterday = $today->copy()->subDay(); // Alpha hanya dihitung sampai kemarin
+        
+        // Program launch date (13 Januari 2026)
+        $launchDate = Carbon::create(2026, 1, 13);
+        
         if ($this->year !== null && $this->month !== null) {
-            $startDate = Carbon::create($this->year, $this->month, 1);
-            $endDate = $startDate->copy()->endOfMonth();
+            $requestedStartDate = Carbon::create($this->year, $this->month, 1);
+            $requestedEndDate = $requestedStartDate->copy()->endOfMonth();
+            
+            // Start date should be the later of launch date or requested start date
+            $startDate = $requestedStartDate->lt($launchDate) ? $launchDate->copy() : $requestedStartDate;
+            
+            // End date should be the earlier of yesterday or end of month
+            // Alpha hanya dihitung sampai kemarin, karena hari ini masih bisa absen
+            $endDate = $yesterday->lt($requestedEndDate) ? $yesterday->copy() : $requestedEndDate;
+            
+            // If end date is before start date, no calculation needed
+            if ($endDate->lt($startDate)) {
+                $endDate = null;
+            }
         } elseif ($this->year !== null) {
-            $startDate = Carbon::create($this->year, 1, 1);
-            $endDate = $startDate->copy()->endOfYear();
+            $requestedStartDate = Carbon::create($this->year, 1, 1);
+            $requestedEndDate = $requestedStartDate->copy()->endOfYear();
+            
+            // Start date should be the later of launch date or requested start date
+            $startDate = $requestedStartDate->lt($launchDate) ? $launchDate->copy() : $requestedStartDate;
+            
+            // End date should be the earlier of yesterday or end of year
+            // Alpha hanya dihitung sampai kemarin, karena hari ini masih bisa absen
+            $endDate = $yesterday->lt($requestedEndDate) ? $yesterday->copy() : $requestedEndDate;
+            
+            // If end date is before start date, no calculation needed
+            if ($endDate->lt($startDate)) {
+                $endDate = null;
+            }
+        }
+
+        // Pre-group attendances by user_id for faster lookup
+        $attendancesByUser = [];
+        foreach ($attendances as $attendance) {
+            $userId = $attendance->user_id;
+            if (!isset($attendancesByUser[$userId])) {
+                $attendancesByUser[$userId] = [];
+            }
+            // attendance_date is already a date, just format it
+            $dateStr = $attendance->attendance_date instanceof Carbon 
+                ? $attendance->attendance_date->format('Y-m-d')
+                : Carbon::parse($attendance->attendance_date)->format('Y-m-d');
+            $attendancesByUser[$userId][$dateStr] = $attendance;
+        }
+
+        // Pre-group leaves by user_id for faster lookup
+        $leavesByUser = [];
+        $leavesCountByUser = [];
+        foreach ($leaves as $leave) {
+            $userId = $leave->user_id;
+            if (!isset($leavesByUser[$userId])) {
+                $leavesByUser[$userId] = [];
+                $leavesCountByUser[$userId] = ['cuti' => 0, 'izin' => 0, 'sakit' => 0];
+            }
+            // leave_date is already a date, just format it
+            $dateStr = $leave->leave_date instanceof Carbon
+                ? $leave->leave_date->format('Y-m-d')
+                : Carbon::parse($leave->leave_date)->format('Y-m-d');
+            $leavesByUser[$userId][$dateStr] = true;
+            $leavesCountByUser[$userId][$leave->leave_type]++;
+        }
+
+        // Pre-calculate working days (exclude weekend) for faster alpha calculation
+        $workingDays = [];
+        if ($startDate && $endDate) {
+            $holidaysSet = array_flip($holidays); // Convert to hash map for O(1) lookup
+            $currentDate = $startDate->copy();
+            while ($currentDate->lte($endDate)) {
+                $dateStr = $currentDate->format('Y-m-d');
+                $dayOfWeek = $currentDate->dayOfWeek; // 0 = Sunday, 6 = Saturday
+                
+                // Skip weekend (Saturday = 6, Sunday = 0)
+                if ($dayOfWeek != 6 && $dayOfWeek != 0) {
+                    // Skip holidays
+                    if (!isset($holidaysSet[$dateStr])) {
+                        $workingDays[] = $dateStr;
+                    }
+                }
+                $currentDate->addDay();
+            }
         }
 
         // Process data per user
         $summary = collect();
 
         foreach ($users as $user) {
-            $userAttendances = $attendances->where('user_id', $user->id);
-            $userLeaves = $leaves->where('user_id', $user->id);
+            $userId = $user->id;
+            $userAttendances = $attendancesByUser[$userId] ?? [];
+            $userLeaves = $leavesByUser[$userId] ?? [];
+            $userLeavesCount = $leavesCountByUser[$userId] ?? ['cuti' => 0, 'izin' => 0, 'sakit' => 0];
 
             $tepatWaktu = 0;
             $terlambat = 0;
             $wfo = 0;
             $wfh = 0;
             $wfa = 0;
-            $cuti = 0;
-            $izin = 0;
-            $sakit = 0;
+            $cuti = $userLeavesCount['cuti'];
+            $izin = $userLeavesCount['izin'];
+            $sakit = $userLeavesCount['sakit'];
             $alpha = 0;
 
             // Count attendances
-            foreach ($userAttendances as $attendance) {
+            foreach ($userAttendances as $dateStr => $attendance) {
                 // Count by work type
                 if ($attendance->work_type === 'WFO') {
                     $wfo++;
@@ -112,7 +195,7 @@ class MonthlyAttendanceSummaryExport implements FromCollection, WithHeadings, Wi
 
                 // Count by status (tepat waktu or terlambat)
                 if ($attendance->check_in) {
-                    $checkInEnd = Carbon::parse($attendance->attendance_date->format('Y-m-d') . ' ' . $checkInEndTime, 'Asia/Jakarta');
+                    $checkInEnd = Carbon::parse($dateStr . ' ' . $checkInEndTime, 'Asia/Jakarta');
                     $checkInTime = Carbon::parse($attendance->check_in, 'Asia/Jakarta');
 
                     if ($checkInTime->gt($checkInEnd)) {
@@ -123,44 +206,13 @@ class MonthlyAttendanceSummaryExport implements FromCollection, WithHeadings, Wi
                 }
             }
 
-            // Count leaves
-            foreach ($userLeaves as $leave) {
-                if ($leave->leave_type === 'cuti') {
-                    $cuti++;
-                } elseif ($leave->leave_type === 'izin') {
-                    $izin++;
-                } elseif ($leave->leave_type === 'sakit') {
-                    $sakit++;
-                }
-            }
-
-            // Calculate alpha (only if we have date range)
-            if ($startDate && $endDate) {
-                $attendanceDates = $userAttendances->pluck('attendance_date')->map(function($date) {
-                    return Carbon::parse($date)->format('Y-m-d');
-                })->toArray();
-
-                $leaveDates = $userLeaves->pluck('leave_date')->map(function($date) {
-                    return Carbon::parse($date)->format('Y-m-d');
-                })->toArray();
-
-                $currentDate = $startDate->copy();
-                while ($currentDate->lte($endDate)) {
-                    $dateStr = $currentDate->format('Y-m-d');
-                    $dayOfWeek = $currentDate->dayOfWeek; // 0 = Sunday, 6 = Saturday
-
-                    // Skip weekend (Saturday = 6, Sunday = 0)
-                    if ($dayOfWeek != 6 && $dayOfWeek != 0) {
-                        // Skip holidays
-                        if (!in_array($dateStr, $holidays)) {
-                            // If no attendance and no leave, count as alpha
-                            if (!in_array($dateStr, $attendanceDates) && !in_array($dateStr, $leaveDates)) {
-                                $alpha++;
-                            }
-                        }
+            // Calculate alpha using pre-calculated working days
+            if (!empty($workingDays)) {
+                foreach ($workingDays as $dateStr) {
+                    // If no attendance and no leave, count as alpha
+                    if (!isset($userAttendances[$dateStr]) && !isset($userLeaves[$dateStr])) {
+                        $alpha++;
                     }
-
-                    $currentDate->addDay();
                 }
             }
 

@@ -115,17 +115,20 @@
         border-radius: 8px;
         border: 2px solid #e5e7eb;
         margin-bottom: 24px;
+        position: relative;
+        z-index: 1;
     }
     
     .map-container {
         position: relative;
+        z-index: 1;
     }
     
     .btn-locate {
         position: absolute;
         top: 10px;
         right: 10px;
-        z-index: 1000;
+        z-index: 1002 !important;
         padding: 10px 16px;
         background: white;
         border: 2px solid #667eea;
@@ -141,6 +144,17 @@
     .btn-locate:hover {
         background: #667eea;
         color: white;
+    }
+    
+    /* Ensure button is above Leaflet controls and sidebar */
+    .map-container {
+        isolation: isolate;
+    }
+    
+    /* Leaflet controls z-index is usually 400-500, so button should be fine */
+    .leaflet-top,
+    .leaflet-bottom {
+        z-index: 400;
     }
     
     input[type="range"] {
