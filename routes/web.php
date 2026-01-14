@@ -60,6 +60,8 @@ Route::middleware(['auth'])->group(function () {
     // Profile Routes
     Route::get('/profile/change-password', [ProfileController::class, 'showChangePasswordForm'])->name('profile.change-password');
     Route::post('/profile/change-password', [ProfileController::class, 'changePassword']);
+    Route::get('/profile/change-username', [ProfileController::class, 'showChangeUsernameForm'])->name('profile.change-username');
+    Route::post('/profile/change-username', [ProfileController::class, 'changeUsername']);
 });
 
 // Admin Routes

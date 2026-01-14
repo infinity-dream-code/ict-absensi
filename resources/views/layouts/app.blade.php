@@ -270,6 +270,10 @@
                         <i class="fas fa-calendar-times" style="font-size:13px;"></i>
                         <span style="font-size:13px;">Perizinan</span>
                     </a>
+                    <a href="{{ route('profile.change-username') }}" class="nav-link">
+                        <i class="fas fa-user-edit" style="font-size:13px;"></i>
+                        <span style="font-size:13px;">Ganti Username</span>
+                    </a>
                     <a href="{{ route('profile.change-password') }}" class="nav-link">
                         <i class="fas fa-key" style="font-size:13px;"></i>
                         <span style="font-size:13px;">Ganti Password</span>
@@ -293,6 +297,10 @@
                     <a href="{{ route('leave.index') }}" class="nav-dropdown-item">
                         <i class="fas fa-calendar-times"></i>
                         <span>Perizinan</span>
+                    </a>
+                    <a href="{{ route('profile.change-username') }}" class="nav-dropdown-item">
+                        <i class="fas fa-user-edit"></i>
+                        <span>Ganti Username</span>
                     </a>
                     <a href="{{ route('profile.change-password') }}" class="nav-dropdown-item">
                         <i class="fas fa-key"></i>

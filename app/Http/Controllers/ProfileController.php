@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use App\Models\User;
 
 class ProfileController extends Controller
 {
@@ -56,5 +57,31 @@ class ProfileController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('profile.change-password')->with('success', 'Password berhasil diubah!');
+    }
+
+    public function showChangeUsernameForm()
+    {
+        return view('profile.change-username');
+    }
+
+    public function changeUsername(Request $request)
+    {
+        $request->validate([
+            'new_username' => 'required|string|max:255|unique:users,username,' . Auth::id(),
+        ], [], [
+            'new_username' => 'Username Baru',
+        ]);
+
+        $user = Auth::user();
+
+        // Update username
+        $user->update([
+            'username' => $request->new_username
+        ]);
+
+        // Clear any existing flash messages
+        $request->session()->forget(['success', 'error']);
+
+        return redirect()->route('profile.change-username')->with('success', 'Username berhasil diubah!');
     }
 }
