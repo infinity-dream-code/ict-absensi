@@ -14,6 +14,7 @@ class Leave extends Model
         'leave_date',
         'leave_type',
         'notes',
+        'attachment',
     ];
 
     protected $casts = [

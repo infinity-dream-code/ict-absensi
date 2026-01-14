@@ -27,7 +27,10 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $user = User::where('nik', $request->nik)->first();
+        // Login dengan username atau NIK
+        $user = User::where('username', $request->nik)
+            ->orWhere('nik', $request->nik)
+            ->first();
 
         if ($user && Hash::check($request->password, $user->password)) {
             // Prevent admin from logging in through employee login
@@ -51,7 +54,7 @@ class AuthController extends Controller
         }
 
         return back()->withErrors([
-            'nik' => 'NIK atau password tidak valid.',
+            'nik' => 'Username/NIK atau password tidak valid.',
         ])->onlyInput('nik');
     }
 

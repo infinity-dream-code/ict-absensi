@@ -156,6 +156,20 @@
                                   placeholder="Tambahkan keterangan (opsional)"></textarea>
                     </div>
 
+                    <div class="form-group">
+                        <label for="attachment" class="form-label">Lampiran Foto (Opsional)</label>
+                        <input type="file" 
+                               class="form-control" 
+                               id="attachment" 
+                               name="attachment" 
+                               accept="image/*"
+                               style="padding: 8px;">
+                        <p style="font-size: 12px; color: #6b7280; margin-top: 6px;">
+                            <i class="fas fa-info-circle"></i> 
+                            Upload foto surat dokter atau dokumen pendukung (Max: 2MB)
+                        </p>
+                    </div>
+
                     <button type="submit" class="btn-submit" id="submitBtn">
                         <i class="fas fa-paper-plane"></i>
                         <span>Ajukan Perizinan</span>

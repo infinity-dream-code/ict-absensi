@@ -217,7 +217,7 @@
                 <img src="{{ asset('logo-512.png') }}" alt="Logo" style="width: 72px; height: 72px; border-radius: 50%;">
             </div>
             <h2 class="login-title">Login</h2>
-            <p class="login-subtitle">Masuk dengan NIK dan Password</p>
+            <p class="login-subtitle">Masuk dengan Username/NIK dan Password</p>
         </div>
 
         @if($errors->any())
@@ -235,7 +235,7 @@
             
             <div class="form-group">
                 <label for="nik" class="form-label">
-                    <i class="fas fa-id-card" style="margin-right:8px; color:#6366f1;"></i>NIK (Nomor Induk Karyawan)
+                    <i class="fas fa-id-card" style="margin-right:8px; color:#6366f1;"></i>Username atau NIK
                 </label>
                 <input type="text" 
                        class="form-input @error('nik') error @enderror" 
@@ -244,7 +244,8 @@
                        value="{{ old('nik') }}" 
                        required 
                        autofocus
-                       placeholder="Masukkan NIK">
+                       placeholder="Masukkan Username atau NIK">
+             
                 @error('nik')
                     <p class="error-text">{{ $message }}</p>
                 @enderror

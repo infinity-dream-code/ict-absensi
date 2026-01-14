@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Leave;
 use Carbon\Carbon;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class LeaveController extends Controller
 {
@@ -32,6 +33,7 @@ class LeaveController extends Controller
             'leave_date_to' => 'required|date|after_or_equal:leave_date_from',
             'leave_type' => 'required|in:cuti,izin,sakit',
             'notes' => 'nullable|string|max:500',
+            'attachment' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         ]);
 
         $dateFrom = Carbon::parse($request->leave_date_from);
@@ -57,6 +59,23 @@ class LeaveController extends Controller
             ], 400);
         }
 
+        // Handle attachment upload to Cloudinary
+        $attachmentUrl = null;
+        if ($request->hasFile('attachment')) {
+            try {
+                $uploadedFile = Cloudinary::upload($request->file('attachment')->getRealPath(), [
+                    'folder' => 'leave_attachments',
+                    'resource_type' => 'image'
+                ]);
+                $attachmentUrl = $uploadedFile->getSecurePath();
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal mengupload foto: ' . $e->getMessage()
+                ], 500);
+            }
+        }
+
         // Insert one row per date
         $inserted = 0;
         foreach ($dates as $date) {
@@ -65,6 +84,7 @@ class LeaveController extends Controller
                 'leave_date' => $date,
                 'leave_type' => $request->leave_type,
                 'notes' => $request->notes,
+                'attachment' => $attachmentUrl,
             ]);
             $inserted++;
         }

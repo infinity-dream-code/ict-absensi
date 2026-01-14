@@ -38,15 +38,29 @@ class EmployeeController extends Controller
             'name' => 'required|string|max:255',
         ]);
 
+        // Generate username from first name (lowercase)
+        $nameParts = explode(' ', trim($request->name));
+        $firstName = strtolower($nameParts[0]);
+        $baseUsername = $firstName;
+        $username = $baseUsername;
+        $counter = 1;
+
+        // Check if username already exists, if yes, append number
+        while (User::where('username', $username)->exists()) {
+            $username = $baseUsername . $counter;
+            $counter++;
+        }
+
         User::create([
             'nik' => $request->nik,
             'name' => $request->name,
+            'username' => $username,
             'email' => $request->nik . '@absensi.local', // Dummy email untuk kompatibilitas
-            'password' => Hash::make($request->nik), // Password default = NIK
+            'password' => Hash::make('123456'), // Password default = 123456
             'role' => 'user',
         ]);
 
-        return redirect()->route('admin.employees.index')->with('success', 'Karyawan berhasil ditambahkan! Password default: NIK');
+        return redirect()->route('admin.employees.index')->with('success', "Karyawan berhasil ditambahkan! Username: {$username}, Password default: 123456");
     }
 
     public function edit(User $employee)
@@ -68,9 +82,23 @@ class EmployeeController extends Controller
             'name' => 'required|string|max:255',
         ]);
 
+        // Generate username from first name (lowercase)
+        $nameParts = explode(' ', trim($request->name));
+        $firstName = strtolower($nameParts[0]);
+        $baseUsername = $firstName;
+        $username = $baseUsername;
+        $counter = 1;
+
+        // Check if username already exists (excluding current user), if yes, append number
+        while (User::where('username', $username)->where('id', '!=', $employee->id)->exists()) {
+            $username = $baseUsername . $counter;
+            $counter++;
+        }
+
         $employee->update([
             'nik' => $request->nik,
             'name' => $request->name,
+            'username' => $username,
             'email' => $request->nik . '@absensi.local', // Update email dummy
         ]);
 

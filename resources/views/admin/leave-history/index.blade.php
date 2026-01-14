@@ -158,6 +158,102 @@
         color: #6b7280;
     }
     
+    .btn-view-image {
+        padding: 6px 12px;
+        background: #10b981;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s;
+    }
+    
+    .btn-view-image:hover {
+        background: #059669;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    }
+    
+    .image-modal {
+        display: none;
+        position: fixed;
+        z-index: 10000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+    
+    .image-modal-content {
+        background-color: white;
+        border-radius: 12px;
+        width: 100%;
+        max-width: 800px;
+        max-height: 90vh;
+        overflow: hidden;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .image-modal-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .image-modal-header h3 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .image-modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: #6b7280;
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+    
+    .image-modal-close:hover {
+        background: #f3f4f6;
+        color: #1f2937;
+    }
+    
+    .image-modal-body {
+        padding: 24px;
+        overflow-y: auto;
+        text-align: center;
+    }
+    
+    .image-modal-body img {
+        max-width: 100%;
+        max-height: 70vh;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
     @media (max-width: 768px) {
         .filter-form {
             grid-template-columns: 1fr;
@@ -267,6 +363,7 @@
                     <th>Nama</th>
                     <th>Jenis Izin</th>
                     <th>Keterangan</th>
+                    <th>Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -281,10 +378,21 @@
                         </span>
                     </td>
                     <td>{{ $leave->notes ?: '-' }}</td>
+                    <td>
+                        @if($leave->attachment)
+                            <button type="button" 
+                                    class="btn-view-image" 
+                                    onclick="viewImage('{{ $leave->attachment }}', '{{ $leave->user->name }}')">
+                                <i class="fas fa-image"></i> Foto
+                            </button>
+                        @else
+                            <span style="color: #9ca3af;">-</span>
+                        @endif
+                    </td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="5" class="empty-state">
+                    <td colspan="6" class="empty-state">
                         Tidak ada data perizinan
                     </td>
                 </tr>
@@ -299,4 +407,44 @@
     </div>
     @endif
 </div>
+
+<!-- Modal View Image -->
+<div id="imageModal" class="image-modal">
+    <div class="image-modal-content">
+        <div class="image-modal-header">
+            <h3>Lampiran Perizinan</h3>
+            <button type="button" class="image-modal-close" onclick="closeImageModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="image-modal-body">
+            <img id="imageModalImage" src="" alt="Lampiran Perizinan" style="max-width: 100%; max-height: 70vh; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <div style="margin-top: 16px; padding: 16px; background: #f9fafb; border-radius: 8px;">
+                <p style="margin: 0; font-size: 14px; color: #374151;"><strong>Nama:</strong> <span id="imageEmployeeName"></span></p>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
+
+@section('scripts')
+<script>
+    function viewImage(imageUrl, employeeName) {
+        document.getElementById('imageEmployeeName').textContent = employeeName;
+        document.getElementById('imageModalImage').src = imageUrl;
+        document.getElementById('imageModal').style.display = 'flex';
+    }
+    
+    function closeImageModal() {
+        document.getElementById('imageModal').style.display = 'none';
+    }
+    
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+        const imageModal = document.getElementById('imageModal');
+        if (event.target == imageModal) {
+            closeImageModal();
+        }
+    }
+</script>
 @endsection
