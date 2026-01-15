@@ -24,25 +24,24 @@ class HistoryController extends Controller
      */
     public function getAttendanceHistory(Request $request)
     {
+        $user = null;
+        
         // Check if authenticated via static API key
         if ($request->has('_api_key_authenticated')) {
-            // For static API key, try to get user_id from header X-User-Id or query parameter
+            // For static API key, try to get user_id from header X-User-Id or query parameter (optional)
             $userId = $request->header('X-User-Id') ?? $request->input('user_id');
             
-            if (!$userId) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User ID is required. Please provide X-User-Id header or user_id parameter when using static API key.'
-                ], 400);
+            if ($userId) {
+                // If user_id provided, get data for that specific user
+                $user = \App\Models\User::find($userId);
+                if (!$user) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'User not found.'
+                    ], 404);
+                }
             }
-            
-            $user = \App\Models\User::find($userId);
-            if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User not found.'
-                ], 404);
-            }
+            // If no user_id, will return all data (for admin/static key access)
         } else {
             // Use JWT authentication - user info is in token
             try {
@@ -55,9 +54,20 @@ class HistoryController extends Controller
             }
         }
 
-        $query = Attendance::where('user_id', $user->id)
-            ->orderBy('attendance_date', 'desc')
-            ->orderBy('check_in', 'desc');
+        // Build query - filter by user_id if user is specified
+        $query = Attendance::query();
+        
+        if ($user) {
+            // If user specified, filter by user_id
+            $query->where('user_id', $user->id);
+        } else {
+            // If no user (static key without user_id), load user relationship for all data
+            $query->with('user');
+        }
+        // If no user (static key without user_id), return all data
+        
+        $query->orderBy('attendance_date', 'desc')
+              ->orderBy('check_in', 'desc');
 
         // Filter by date range
         if ($request->filled('date_from')) {
@@ -87,8 +97,8 @@ class HistoryController extends Controller
         $attendances = $query->paginate($perPage);
 
         // Format response
-        $data = $attendances->map(function ($attendance) {
-            return [
+        $data = $attendances->map(function ($attendance) use ($user) {
+            $item = [
                 'id' => $attendance->id,
                 'attendance_date' => $attendance->attendance_date->format('Y-m-d'),
                 'work_type' => $attendance->work_type,
@@ -102,6 +112,18 @@ class HistoryController extends Controller
                 'longitude' => $attendance->longitude,
                 'created_at' => $attendance->created_at->format('Y-m-d H:i:s'),
             ];
+            
+            // Add user info if static key without user_id (returning all data)
+            if (!$user && $attendance->relationLoaded('user') && $attendance->user) {
+                $item['user'] = [
+                    'id' => $attendance->user->id,
+                    'nik' => $attendance->user->nik,
+                    'username' => $attendance->user->username,
+                    'name' => $attendance->user->name,
+                ];
+            }
+            
+            return $item;
         });
 
         return response()->json([
@@ -126,25 +148,24 @@ class HistoryController extends Controller
      */
     public function getLeaveHistory(Request $request)
     {
+        $user = null;
+        
         // Check if authenticated via static API key
         if ($request->has('_api_key_authenticated')) {
-            // For static API key, try to get user_id from header X-User-Id or query parameter
+            // For static API key, try to get user_id from header X-User-Id or query parameter (optional)
             $userId = $request->header('X-User-Id') ?? $request->input('user_id');
             
-            if (!$userId) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User ID is required. Please provide X-User-Id header or user_id parameter when using static API key.'
-                ], 400);
+            if ($userId) {
+                // If user_id provided, get data for that specific user
+                $user = \App\Models\User::find($userId);
+                if (!$user) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'User not found.'
+                    ], 404);
+                }
             }
-            
-            $user = \App\Models\User::find($userId);
-            if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User not found.'
-                ], 404);
-            }
+            // If no user_id, will return all data (for admin/static key access)
         } else {
             // Use JWT authentication - user info is in token
             try {
@@ -157,8 +178,19 @@ class HistoryController extends Controller
             }
         }
 
-        $query = Leave::where('user_id', $user->id)
-            ->orderBy('leave_date', 'desc');
+        // Build query - filter by user_id if user is specified
+        $query = Leave::query();
+        
+        if ($user) {
+            // If user specified, filter by user_id
+            $query->where('user_id', $user->id);
+        } else {
+            // If no user (static key without user_id), load user relationship for all data
+            $query->with('user');
+        }
+        // If no user (static key without user_id), return all data
+        
+        $query->orderBy('leave_date', 'desc');
 
         // Filter by date range
         if ($request->filled('date_from')) {
@@ -188,8 +220,8 @@ class HistoryController extends Controller
         $leaves = $query->paginate($perPage);
 
         // Format response
-        $data = $leaves->map(function ($leave) {
-            return [
+        $data = $leaves->map(function ($leave) use ($user) {
+            $item = [
                 'id' => $leave->id,
                 'leave_date' => $leave->leave_date->format('Y-m-d'),
                 'leave_type' => $leave->leave_type,
@@ -198,6 +230,18 @@ class HistoryController extends Controller
                 'attachment' => $leave->attachment,
                 'created_at' => $leave->created_at->format('Y-m-d H:i:s'),
             ];
+            
+            // Add user info if static key without user_id (returning all data)
+            if (!$user && $leave->relationLoaded('user') && $leave->user) {
+                $item['user'] = [
+                    'id' => $leave->user->id,
+                    'nik' => $leave->user->nik,
+                    'username' => $leave->user->username,
+                    'name' => $leave->user->name,
+                ];
+            }
+            
+            return $item;
         });
 
         return response()->json([
