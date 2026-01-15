@@ -26,7 +26,14 @@ Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
 });
 
-// Protected API Routes (Require JWT Authentication)
+// Protected API Routes (Require JWT Authentication OR Static API Key)
+Route::middleware(['api.key'])->group(function () {
+    // History Routes (Accept Static API Key OR JWT)
+    Route::get('/history/attendance', [HistoryController::class, 'getAttendanceHistory']);
+    Route::get('/history/leave', [HistoryController::class, 'getLeaveHistory']);
+});
+
+// Protected API Routes (Require JWT Authentication Only)
 Route::middleware('auth:api')->group(function () {
     // Auth Routes
     Route::prefix('auth')->group(function () {
@@ -34,10 +41,6 @@ Route::middleware('auth:api')->group(function () {
         Route::post('/refresh', [AuthController::class, 'refresh']);
         Route::get('/me', [AuthController::class, 'me']);
     });
-
-    // History Routes
-    Route::get('/history/attendance', [HistoryController::class, 'getAttendanceHistory']);
-    Route::get('/history/leave', [HistoryController::class, 'getLeaveHistory']);
 });
 
 // Public API Routes (No Authentication Required)

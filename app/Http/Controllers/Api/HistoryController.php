@@ -13,7 +13,7 @@ class HistoryController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth:api');
+        // Middleware handled at route level (api.key or auth:api)
     }
 
     /**
@@ -24,7 +24,34 @@ class HistoryController extends Controller
      */
     public function getAttendanceHistory(Request $request)
     {
-        $user = JWTAuth::parseToken()->authenticate();
+        // Check if authenticated via static API key
+        if ($request->has('_api_key_authenticated')) {
+            // For static API key, user_id must be provided
+            $userId = $request->input('user_id');
+            if (!$userId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'user_id parameter is required when using static API key.'
+                ], 400);
+            }
+            $user = \App\Models\User::find($userId);
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not found.'
+                ], 404);
+            }
+        } else {
+            // Use JWT authentication
+            try {
+                $user = JWTAuth::parseToken()->authenticate();
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthenticated. Please provide valid JWT token or static API key.'
+                ], 401);
+            }
+        }
 
         $query = Attendance::where('user_id', $user->id)
             ->orderBy('attendance_date', 'desc')
@@ -97,7 +124,34 @@ class HistoryController extends Controller
      */
     public function getLeaveHistory(Request $request)
     {
-        $user = JWTAuth::parseToken()->authenticate();
+        // Check if authenticated via static API key
+        if ($request->has('_api_key_authenticated')) {
+            // For static API key, user_id must be provided
+            $userId = $request->input('user_id');
+            if (!$userId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'user_id parameter is required when using static API key.'
+                ], 400);
+            }
+            $user = \App\Models\User::find($userId);
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not found.'
+                ], 404);
+            }
+        } else {
+            // Use JWT authentication
+            try {
+                $user = JWTAuth::parseToken()->authenticate();
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthenticated. Please provide valid JWT token or static API key.'
+                ], 401);
+            }
+        }
 
         $query = Leave::where('user_id', $user->id)
             ->orderBy('leave_date', 'desc');
