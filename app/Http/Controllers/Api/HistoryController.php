@@ -26,14 +26,16 @@ class HistoryController extends Controller
     {
         // Check if authenticated via static API key
         if ($request->has('_api_key_authenticated')) {
-            // For static API key, user_id must be provided
-            $userId = $request->input('user_id');
+            // For static API key, try to get user_id from header X-User-Id or query parameter
+            $userId = $request->header('X-User-Id') ?? $request->input('user_id');
+            
             if (!$userId) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'user_id parameter is required when using static API key.'
+                    'message' => 'User ID is required. Please provide X-User-Id header or user_id parameter when using static API key.'
                 ], 400);
             }
+            
             $user = \App\Models\User::find($userId);
             if (!$user) {
                 return response()->json([
@@ -42,7 +44,7 @@ class HistoryController extends Controller
                 ], 404);
             }
         } else {
-            // Use JWT authentication
+            // Use JWT authentication - user info is in token
             try {
                 $user = JWTAuth::parseToken()->authenticate();
             } catch (\Exception $e) {
@@ -126,14 +128,16 @@ class HistoryController extends Controller
     {
         // Check if authenticated via static API key
         if ($request->has('_api_key_authenticated')) {
-            // For static API key, user_id must be provided
-            $userId = $request->input('user_id');
+            // For static API key, try to get user_id from header X-User-Id or query parameter
+            $userId = $request->header('X-User-Id') ?? $request->input('user_id');
+            
             if (!$userId) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'user_id parameter is required when using static API key.'
+                    'message' => 'User ID is required. Please provide X-User-Id header or user_id parameter when using static API key.'
                 ], 400);
             }
+            
             $user = \App\Models\User::find($userId);
             if (!$user) {
                 return response()->json([
@@ -142,7 +146,7 @@ class HistoryController extends Controller
                 ], 404);
             }
         } else {
-            // Use JWT authentication
+            // Use JWT authentication - user info is in token
             try {
                 $user = JWTAuth::parseToken()->authenticate();
             } catch (\Exception $e) {
