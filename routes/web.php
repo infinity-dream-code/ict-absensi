@@ -86,6 +86,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('/location-settings', [\App\Http\Controllers\Admin\LocationController::class, 'update'])->name('location.update');
         Route::get('/holiday', [\App\Http\Controllers\Admin\HolidayController::class, 'index'])->name('holiday.index');
         Route::post('/holiday', [\App\Http\Controllers\Admin\HolidayController::class, 'store'])->name('holiday.store');
+        Route::post('/holiday/sync', [\App\Http\Controllers\Admin\HolidayController::class, 'syncFromApi'])->name('holiday.sync');
+        Route::put('/holiday/{id}', [\App\Http\Controllers\Admin\HolidayController::class, 'update'])->name('holiday.update');
         Route::delete('/holiday/{id}', [\App\Http\Controllers\Admin\HolidayController::class, 'destroy'])->name('holiday.destroy');
     });
 });

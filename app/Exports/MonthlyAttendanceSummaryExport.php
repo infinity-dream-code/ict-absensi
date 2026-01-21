@@ -77,8 +77,8 @@ class MonthlyAttendanceSummaryExport implements FromCollection, WithHeadings, Wi
         $today = Carbon::today('Asia/Jakarta');
         $yesterday = $today->copy()->subDay(); // Alpha hanya dihitung sampai kemarin
         
-        // Program launch date (13 Januari 2026)
-        $launchDate = Carbon::create(2026, 1, 13);
+        // Program launch date (1 Januari 2026)
+        $launchDate = Carbon::create(2026, 1, 1);
         
         if ($this->year !== null && $this->month !== null) {
             $requestedStartDate = Carbon::create($this->year, $this->month, 1);

@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Models\Attendance;
+use App\Models\Holiday;
 use App\Models\User;
 use Carbon\Carbon;
 use App\Exports\AttendanceExport;
@@ -101,7 +102,16 @@ class AttendanceHistoryController extends Controller
             ['path' => $request->url(), 'query' => $request->query()]
         );
 
-        return view('admin.attendance-history.index', compact('attendances', 'paginator', 'datesForPage'));
+        // Get holidays for dates in current page
+        $holidaysByDate = [];
+        if ($datesForPage->isNotEmpty()) {
+            $holidays = Holiday::whereIn('date', $datesForPage->toArray())->get();
+            foreach ($holidays as $holiday) {
+                $holidaysByDate[$holiday->date->format('Y-m-d')] = $holiday;
+            }
+        }
+
+        return view('admin.attendance-history.index', compact('attendances', 'paginator', 'datesForPage', 'holidaysByDate'));
     }
 
     public function export(Request $request)

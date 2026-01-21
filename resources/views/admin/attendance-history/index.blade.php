@@ -157,10 +157,18 @@
         font-size: 14px;
         color: #374151;
         border-bottom: 1px solid #e5e7eb;
+        vertical-align: top;
     }
     
     tbody tr:hover {
         background: #f9fafb;
+    }
+    
+    td.notes-cell {
+        max-width: 200px;
+        white-space: normal;
+        word-wrap: break-word;
+        font-size: 13px;
     }
     
     .badge {
@@ -197,6 +205,37 @@
         padding: 48px;
         text-align: center;
         color: #6b7280;
+    }
+    
+    .holiday-note {
+        background: #fef3c7;
+        border-left: 4px solid #f59e0b;
+        padding: 12px 16px;
+        margin: 8px 0;
+        border-radius: 6px;
+    }
+    
+    .holiday-note-title {
+        font-weight: 600;
+        color: #92400e;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .holiday-note-content {
+        font-size: 13px;
+        color: #78350f;
+        margin-top: 4px;
+    }
+    
+    .date-group-header {
+        background: #f9fafb;
+        padding: 12px 16px;
+        font-weight: 600;
+        color: #374151;
+        border-bottom: 2px solid #e5e7eb;
     }
     
     .btn-view-location {
@@ -447,12 +486,40 @@
                     <th>Check-In</th>
                     <th>Check-Out</th>
                     <th>Status</th>
+                    <th>Catatan</th>
                     <th>Lokasi</th>
                     <th>Aksi</th>
                 </tr>
             </thead>
             <tbody>
+                @php
+                    $currentDate = null;
+                    $holidaysByDate = $holidaysByDate ?? [];
+                @endphp
                 @forelse($attendances as $attendance)
+                @php
+                    $attendanceDate = \Carbon\Carbon::parse($attendance->attendance_date)->format('Y-m-d');
+                    $showDateHeader = $currentDate !== $attendanceDate;
+                    $currentDate = $attendanceDate;
+                    $holiday = isset($holidaysByDate[$attendanceDate]) ? $holidaysByDate[$attendanceDate] : null;
+                @endphp
+                
+                @if($showDateHeader && $holiday && !empty($holiday->notes))
+                <tr>
+                    <td colspan="10" style="padding: 0;">
+                        <div class="holiday-note">
+                            <div class="holiday-note-title">
+                                <i class="fas fa-calendar-day"></i>
+                                <span>{{ $holiday->description }}</span>
+                            </div>
+                            <div class="holiday-note-content">
+                                <i class="fas fa-info-circle"></i> {{ $holiday->notes }}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                @endif
+                
                 <tr>
                     <td>{{ \Carbon\Carbon::parse($attendance->attendance_date)->locale('id')->isoFormat('D MMM YYYY') }}</td>
                     <td style="font-weight: 600;">{{ $attendance->user->nik }}</td>
@@ -486,6 +553,13 @@
                             <span style="color: #dc2626; font-weight: 600;">Terlambat</span>
                         @elseif($checkInTime)
                             <span style="color: #059669; font-weight: 600;">Tepat Waktu</span>
+                        @else
+                            <span style="color: #9ca3af;">-</span>
+                        @endif
+                    </td>
+                    <td class="notes-cell">
+                        @if($attendance->notes)
+                            {{ $attendance->notes }}
                         @else
                             <span style="color: #9ca3af;">-</span>
                         @endif
@@ -538,7 +612,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="9" class="empty-state">
+                    <td colspan="10" class="empty-state">
                         Tidak ada data absensi
                     </td>
                 </tr>

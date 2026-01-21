@@ -194,6 +194,97 @@
         color: #6b7280;
     }
     
+    .btn-sync {
+        padding: 10px 20px;
+        font-size: 14px;
+        font-weight: 600;
+        color: white;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    }
+    
+    .btn-sync:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    }
+    
+    .btn-edit {
+        padding: 6px 12px;
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s;
+        margin-right: 8px;
+    }
+    
+    .btn-edit:hover {
+        background: #2563eb;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    }
+    
+    .btn-save {
+        padding: 6px 12px;
+        background: #10b981;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s;
+        margin-right: 8px;
+    }
+    
+    .btn-save:hover {
+        background: #059669;
+    }
+    
+    .btn-cancel {
+        padding: 6px 12px;
+        background: #6b7280;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s;
+        margin-right: 8px;
+    }
+    
+    .btn-cancel:hover {
+        background: #4b5563;
+    }
+    
+    .edit-input {
+        width: 100%;
+        padding: 8px 12px;
+        font-size: 14px;
+        border: 2px solid #3b82f6;
+        border-radius: 6px;
+    }
+    
     @media (max-width: 768px) {
         .holiday-card {
             padding: 24px;
@@ -217,15 +308,25 @@
         <h1 class="page-title">Kelola Libur</h1>
         <p class="page-subtitle">Atur tanggal libur nasional dan perusahaan</p>
     </div>
-    <div class="year-selector">
-        <form method="GET" action="{{ route('admin.holiday.index') }}" style="display: flex; gap: 8px; align-items: center;">
-            <label for="year" style="font-size: 14px; font-weight: 600; color: #374151;">Tahun:</label>
-            <select name="year" id="year" onchange="this.form.submit()" style="padding: 8px 16px; font-size: 14px; border: 2px solid #e5e7eb; border-radius: 8px;">
-                @foreach($availableYears as $y)
-                    <option value="{{ $y }}" {{ $year == $y ? 'selected' : '' }}>{{ $y }}</option>
-                @endforeach
-            </select>
+    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+        <form method="POST" action="{{ route('admin.holiday.sync') }}" style="display: inline;">
+            @csrf
+            <input type="hidden" name="year" value="{{ $year }}">
+            <button type="submit" class="btn-sync" onclick="return confirm('Impor hari libur nasional tahun {{ $year }} dari API?')">
+                <i class="fas fa-sync"></i>
+                <span>Sync Libur Nasional</span>
+            </button>
         </form>
+        <div class="year-selector">
+            <form method="GET" action="{{ route('admin.holiday.index') }}" style="display: flex; gap: 8px; align-items: center;">
+                <label for="year" style="font-size: 14px; font-weight: 600; color: #374151;">Tahun:</label>
+                <select name="year" id="year" onchange="this.form.submit()" style="padding: 8px 16px; font-size: 14px; border: 2px solid #e5e7eb; border-radius: 8px;">
+                    @foreach($availableYears as $y)
+                        <option value="{{ $y }}" {{ $year == $y ? 'selected' : '' }}>{{ $y }}</option>
+                    @endforeach
+                </select>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -260,6 +361,15 @@
                 </div>
             </div>
             
+            <div class="form-group">
+                <label for="notes" class="form-label">Catatan (Opsional)</label>
+                <textarea id="notes" 
+                          name="notes" 
+                          class="form-input"
+                          rows="3"
+                          placeholder="Tambahkan catatan tambahan jika diperlukan..."></textarea>
+            </div>
+            
             <div class="form-actions">
                 <button type="submit" class="btn-submit">
                     <i class="fas fa-plus"></i>
@@ -279,16 +389,40 @@
                     <th>Tanggal</th>
                     <th>Hari</th>
                     <th>Keterangan</th>
+                    <th>Catatan</th>
                     <th>Aksi</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($holidays as $holiday)
-                <tr>
+                <tr id="row-{{ $holiday->id }}">
                     <td>{{ \Carbon\Carbon::parse($holiday->date)->locale('id')->isoFormat('D MMMM YYYY') }}</td>
                     <td>{{ \Carbon\Carbon::parse($holiday->date)->locale('id')->isoFormat('dddd') }}</td>
-                    <td>{{ $holiday->description }}</td>
                     <td>
+                        <span id="desc-view-{{ $holiday->id }}">{{ $holiday->description }}</span>
+                        <form id="desc-edit-{{ $holiday->id }}" style="display: none;" action="{{ route('admin.holiday.update', $holiday->id) }}" method="POST">
+                            @csrf
+                            @method('PUT')
+                            <input type="text" name="description" class="edit-input" value="{{ $holiday->description }}" required>
+                            <textarea name="notes" class="edit-input" rows="2" placeholder="Catatan (opsional)" style="margin-top: 8px;">{{ $holiday->notes }}</textarea>
+                        </form>
+                    </td>
+                    <td>
+                        <span id="notes-view-{{ $holiday->id }}" style="font-size: 13px; color: #6b7280;">{{ $holiday->notes ?? '-' }}</span>
+                    </td>
+                    <td>
+                        <button type="button" class="btn-edit" id="btn-edit-{{ $holiday->id }}" onclick="editHoliday({{ $holiday->id }})">
+                            <i class="fas fa-edit"></i>
+                            Edit
+                        </button>
+                        <button type="button" class="btn-save" id="btn-save-{{ $holiday->id }}" style="display: none;" onclick="saveHoliday({{ $holiday->id }})">
+                            <i class="fas fa-save"></i>
+                            Simpan
+                        </button>
+                        <button type="button" class="btn-cancel" id="btn-cancel-{{ $holiday->id }}" style="display: none;" onclick="cancelEdit({{ $holiday->id }})">
+                            <i class="fas fa-times"></i>
+                            Batal
+                        </button>
                         <form action="{{ route('admin.holiday.destroy', $holiday->id) }}" 
                               method="POST" 
                               onsubmit="return confirm('Yakin ingin menghapus libur ini?')"
@@ -304,7 +438,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="4" class="empty-state">
+                    <td colspan="5" class="empty-state">
                         Tidak ada libur untuk tahun {{ $year }}
                     </td>
                 </tr>
@@ -313,4 +447,45 @@
         </table>
     </div>
 </div>
+
+<script>
+let originalDescriptions = {};
+
+function editHoliday(id) {
+    // Save original description
+    const descView = document.getElementById(`desc-view-${id}`);
+    const notesView = document.getElementById(`notes-view-${id}`);
+    originalDescriptions[id] = descView.textContent;
+    
+    // Toggle visibility
+    descView.style.display = 'none';
+    notesView.style.display = 'none';
+    document.getElementById(`desc-edit-${id}`).style.display = 'block';
+    document.getElementById(`btn-edit-${id}`).style.display = 'none';
+    document.getElementById(`btn-save-${id}`).style.display = 'inline-flex';
+    document.getElementById(`btn-cancel-${id}`).style.display = 'inline-flex';
+}
+
+function saveHoliday(id) {
+    document.getElementById(`desc-edit-${id}`).submit();
+}
+
+function cancelEdit(id) {
+    // Restore original description
+    const descView = document.getElementById(`desc-view-${id}`);
+    const notesView = document.getElementById(`notes-view-${id}`);
+    const descEdit = document.getElementById(`desc-edit-${id}`);
+    const input = descEdit.querySelector('input');
+    
+    input.value = originalDescriptions[id];
+    
+    // Toggle visibility
+    descView.style.display = 'inline';
+    notesView.style.display = 'inline';
+    descEdit.style.display = 'none';
+    document.getElementById(`btn-edit-${id}`).style.display = 'inline-flex';
+    document.getElementById(`btn-save-${id}`).style.display = 'none';
+    document.getElementById(`btn-cancel-${id}`).style.display = 'none';
+}
+</script>
 @endsection
