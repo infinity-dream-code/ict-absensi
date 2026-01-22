@@ -115,4 +115,17 @@ class EmployeeController extends Controller
 
         return redirect()->route('admin.employees.index')->with('success', 'Karyawan berhasil dihapus!');
     }
+
+    public function resetPassword(User $employee)
+    {
+        if ($employee->role !== 'user') {
+            return redirect()->route('admin.employees.index')->with('error', 'Akses ditolak!');
+        }
+
+        $employee->update([
+            'password' => Hash::make('123456'),
+        ]);
+
+        return redirect()->route('admin.employees.index')->with('success', "Password karyawan {$employee->name} berhasil direset menjadi 123456!");
+    }
 }

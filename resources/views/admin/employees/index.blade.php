@@ -126,6 +126,15 @@
         background: #fee2e2;
     }
     
+    .btn-reset {
+        background: #fef3c7;
+        color: #d97706;
+    }
+    
+    .btn-reset:hover {
+        background: #fde68a;
+    }
+    
     .empty-state {
         padding: 48px;
         text-align: center;
@@ -193,6 +202,13 @@
                                 <i class="fas fa-edit"></i>
                                 <span>Edit</span>
                             </a>
+                            <form action="{{ route('admin.employees.reset-password', $employee) }}" method="POST" style="display: inline;" onsubmit="return confirm('Yakin ingin mereset password karyawan ini menjadi 123456?')">
+                                @csrf
+                                <button type="submit" class="btn-action btn-reset">
+                                    <i class="fas fa-key"></i>
+                                    <span>Reset Password</span>
+                                </button>
+                            </form>
                             <form action="{{ route('admin.employees.destroy', $employee) }}" method="POST" style="display: inline;" onsubmit="return confirm('Yakin ingin menghapus karyawan ini?')">
                                 @csrf
                                 @method('DELETE')

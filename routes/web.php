@@ -78,6 +78,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
         Route::put('/settings', [SettingController::class, 'update'])->name('settings.update');
         Route::resource('employees', EmployeeController::class);
+        Route::post('/employees/{employee}/reset-password', [EmployeeController::class, 'resetPassword'])->name('employees.reset-password');
         Route::get('/attendance-history', [\App\Http\Controllers\Admin\AttendanceHistoryController::class, 'index'])->name('attendance-history.index');
         Route::get('/attendance-history/export', [\App\Http\Controllers\Admin\AttendanceHistoryController::class, 'export'])->name('attendance-history.export');
         Route::get('/attendance-history/export-monthly', [\App\Http\Controllers\Admin\AttendanceHistoryController::class, 'exportMonthlySummary'])->name('attendance-history.export-monthly');
