@@ -603,9 +603,17 @@
                     </div>
 
                     <div class="btn-grid">
-                        <button type="button" id="checkInBtn" class="btn btn-success" {{ isset($attendance) && $attendance->check_in ? 'disabled' : '' }}>
+                        <button type="button" id="checkInBtn" class="btn btn-success" {{ isset($attendance) && $attendance->check_out ? 'disabled' : '' }}>
                             <i class="fas fa-sign-in-alt"></i>
-                            <span>{{ isset($attendance) && $attendance->check_in ? 'Sudah Check-In' : 'Check-In' }}</span>
+                            <span id="checkInBtnText">
+                                @if(isset($attendance) && $attendance->check_out)
+                                    Sudah Check-Out
+                                @elseif(isset($attendance) && $attendance->check_in)
+                                    Check-In Lagi
+                                @else
+                                    Check-In
+                                @endif
+                            </span>
                         </button>
                         
                         <button type="button" id="checkOutBtn" class="btn btn-danger" {{ isset($attendance) && $attendance->check_out ? 'disabled' : '' }}>
@@ -642,6 +650,26 @@
                     </p>
                 </div>
             </div>
+            @if($attendance->logs && $attendance->logs->count() > 0)
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+                <p style="font-size: 0.75rem; font-weight: 500; color: #6b7280; margin: 0 0 0.5rem 0;">Riwayat Check-In</p>
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    @foreach($attendance->logs->sortBy('check_in_time') as $log)
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #f9fafb; border-radius: 0.375rem;">
+                        <div>
+                            <span style="font-size: 0.875rem; font-weight: 600; color: #374151;">{{ $log->status }}</span>
+                            <span style="font-size: 0.75rem; color: #6b7280; margin-left: 0.5rem;">{{ \Carbon\Carbon::parse($log->check_in_time)->setTimezone('Asia/Jakarta')->format('H:i:s') }}</span>
+                        </div>
+                        @if($log->notes)
+                        <span style="font-size: 0.75rem; color: #6b7280;" title="{{ $log->notes }}">
+                            <i class="fas fa-sticky-note"></i>
+                        </span>
+                        @endif
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
         </div>
         @endif
     </div>
@@ -1266,6 +1294,14 @@
                 showConfirmButton: icon === 'warning',
                 confirmButtonColor: '#6366f1'
             }).then(() => {
+                // Update button text to show "Check-In Lagi" after first check-in
+                document.getElementById('checkInBtnText').textContent = 'Check-In Lagi';
+                
+                // Clear form for next check-in
+                document.getElementById('notes').value = '';
+                document.getElementById('image').value = '';
+                
+                // Reload to update status card
                 location.reload();
             });
         })

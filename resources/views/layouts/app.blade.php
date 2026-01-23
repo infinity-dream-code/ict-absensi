@@ -252,7 +252,7 @@
 </head>
 <body>
     @if(auth()->check() && auth()->user()->role !== 'admin')
-    <nav class="navbar">
+    <nav class="navbar" style="z-index: 9999;">
         <div class="nav-container">
             <a href="{{ route('attendance.index') }}" class="brand">
                 <div class="brand-icon" style="background: transparent; width: 32px; height: 32px; padding: 0;">

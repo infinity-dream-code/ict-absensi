@@ -280,6 +280,29 @@
         box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
     }
     
+    .btn-view-logs {
+        padding: 6px 12px;
+        background: #6366f1;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: all 0.2s;
+        min-width: 32px;
+    }
+    
+    .btn-view-logs:hover {
+        background: #4f46e5;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    }
+    
     .location-modal {
         display: none;
         position: fixed;
@@ -498,6 +521,10 @@
                 @endphp
                 @forelse($attendances as $attendance)
                 @php
+                    // Load logs relationship
+                    $attendance->load('logs');
+                @endphp
+                @php
                     $attendanceDate = \Carbon\Carbon::parse($attendance->attendance_date)->format('Y-m-d');
                     $showDateHeader = $currentDate !== $attendanceDate;
                     $currentDate = $attendanceDate;
@@ -548,8 +575,25 @@
                             $settings = \App\Models\Setting::getSettings();
                             $checkInEnd = \Carbon\Carbon::parse($attendance->attendance_date->format('Y-m-d') . ' ' . ($settings->check_in_end ?: '09:00:00'), 'Asia/Jakarta');
                             $checkInTime = $attendance->check_in ? \Carbon\Carbon::parse($attendance->check_in, 'Asia/Jakarta') : null;
+                            
+                            // Check if there's a log with WFA status between 9-10 AM
+                            $isNotLate = false;
+                            if ($attendance->logs && $attendance->logs->count() > 0) {
+                                $firstLog = $attendance->logs
+                                    ->where('status', 'WFA')
+                                    ->filter(function($log) {
+                                        $logTime = \Carbon\Carbon::parse($log->check_in_time, 'Asia/Jakarta');
+                                        $hour = (int)$logTime->format('H');
+                                        return $hour >= 9 && $hour <= 10;
+                                    })
+                                    ->sortBy('check_in_time')
+                                    ->first();
+                                
+                                // If first check-in was WFA between 9-10 AM, it's not late
+                                $isNotLate = $firstLog !== null;
+                            }
                         @endphp
-                        @if($checkInTime && $checkInTime->gt($checkInEnd))
+                        @if($checkInTime && !$isNotLate && $checkInTime->gt($checkInEnd))
                             <span style="color: #dc2626; font-weight: 600;">Terlambat</span>
                         @elseif($checkInTime)
                             <span style="color: #059669; font-weight: 600;">Tepat Waktu</span>
@@ -589,7 +633,13 @@
                         @endif
                     </td>
                     <td>
-                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                            <button type="button" 
+                                    class="btn-view-logs" 
+                                    onclick="viewLogs({{ $attendance->id }})"
+                                    title="Lihat Log Absensi">
+                                <i class="fas fa-plus"></i>
+                            </button>
                             @if($attendance->latitude && $attendance->longitude)
                                 <button type="button" 
                                         class="btn-view-location" 
@@ -603,9 +653,6 @@
                                         onclick="viewImage('{{ $attendance->image }}', '{{ $attendance->user->name }}')">
                                     <i class="fas fa-image"></i> Gambar
                                 </button>
-                            @endif
-                            @if(!$attendance->latitude && !$attendance->longitude && !$attendance->image)
-                                <span style="color: #9ca3af;">-</span>
                             @endif
                         </div>
                     </td>
@@ -664,6 +711,26 @@
                 <p><strong>Waktu Check-In:</strong> <span id="locationCheckInTime"></span></p>
                 <p id="locationStatusContainer" style="display: none;"><strong>Status Lokasi:</strong> <span id="locationStatus"></span></p>
                 <p id="locationNameContainer" style="display: none;"><strong>Lokasi Check-In:</strong> <span id="locationName"></span></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal View Logs -->
+<div id="logsModal" class="location-modal">
+    <div class="location-modal-content">
+        <div class="location-modal-header">
+            <h3 id="logsModalTitle">Log Absensi</h3>
+            <button type="button" class="location-modal-close" onclick="closeLogsModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="location-modal-body">
+            <div id="logsContent" style="min-height: 200px;">
+                <div style="text-align: center; padding: 40px;">
+                    <div class="swal2-loader"></div>
+                    <p style="margin-top: 16px; color: #6b7280;">Memuat log absensi...</p>
+                </div>
             </div>
         </div>
     </div>
@@ -775,12 +842,103 @@
     window.onclick = function(event) {
         const locationModal = document.getElementById('locationModal');
         const imageModal = document.getElementById('imageModal');
+        const logsModal = document.getElementById('logsModal');
         if (event.target == locationModal) {
             closeLocationModal();
         }
         if (event.target == imageModal) {
             closeImageModal();
         }
+        if (event.target == logsModal) {
+            closeLogsModal();
+        }
+    }
+    
+    function viewLogs(attendanceId) {
+        document.getElementById('logsModal').style.display = 'flex';
+        document.getElementById('logsContent').innerHTML = `
+            <div style="text-align: center; padding: 40px;">
+                <div class="swal2-loader"></div>
+                <p style="margin-top: 16px; color: #6b7280;">Memuat log absensi...</p>
+            </div>
+        `;
+        
+        axios.get(`/admin/attendance-history/${attendanceId}/logs`)
+            .then(response => {
+                const { attendance, logs } = response.data;
+                
+                if (logs.length === 0) {
+                    document.getElementById('logsContent').innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #6b7280;">
+                            <i class="fas fa-info-circle" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                            <p>Tidak ada log absensi untuk absensi ini.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let logsHtml = `
+                    <div style="margin-bottom: 24px; padding: 16px; background: #f9fafb; border-radius: 8px;">
+                        <p style="margin: 0; font-size: 14px;"><strong>Nama:</strong> ${attendance.user.name}</p>
+                        <p style="margin: 8px 0 0 0; font-size: 14px;"><strong>NIK:</strong> ${attendance.user.nik}</p>
+                        <p style="margin: 8px 0 0 0; font-size: 14px;"><strong>Tanggal:</strong> ${new Date(attendance.attendance_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 16px;">
+                `;
+                
+                logs.forEach((log, index) => {
+                    const checkInTime = new Date(log.check_in_time).toLocaleString('id-ID', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                    
+                    const statusBadgeClass = log.status === 'WFA' ? 'badge-wfa' : (log.status === 'WFO' ? 'badge-wfo' : 'badge-wfh');
+                    
+                    logsHtml += `
+                        <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; background: white;">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                                <div>
+                                    <span class="badge ${statusBadgeClass}" style="margin-bottom: 8px; display: inline-block;">${log.status}</span>
+                                    <p style="margin: 4px 0 0 0; font-size: 14px; color: #6b7280;"><strong>Waktu:</strong> ${checkInTime}</p>
+                                </div>
+                                <span style="font-size: 12px; color: #9ca3af;">#${index + 1}</span>
+                            </div>
+                            ${log.notes ? `<p style="margin: 8px 0; font-size: 14px; color: #374151;"><strong>Catatan:</strong> ${log.notes}</p>` : ''}
+                            ${log.location_name ? `<p style="margin: 8px 0; font-size: 14px; color: #374151;"><strong>Lokasi:</strong> ${log.location_name}</p>` : ''}
+                            ${log.latitude && log.longitude ? `
+                                <p style="margin: 8px 0; font-size: 14px; color: #374151;">
+                                    <strong>Koordinat:</strong> ${log.latitude}, ${log.longitude}
+                                </p>
+                            ` : ''}
+                            ${log.image ? `
+                                <div style="margin-top: 12px;">
+                                    <img src="${log.image}" alt="Gambar absensi" style="max-width: 100%; max-height: 200px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+                
+                logsHtml += '</div>';
+                document.getElementById('logsContent').innerHTML = logsHtml;
+            })
+            .catch(error => {
+                document.getElementById('logsContent').innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #dc2626;">
+                        <i class="fas fa-exclamation-circle" style="font-size: 48px; margin-bottom: 16px;"></i>
+                        <p>Gagal memuat log absensi. Silakan coba lagi.</p>
+                    </div>
+                `;
+                console.error('Error loading logs:', error);
+            });
+    }
+    
+    function closeLogsModal() {
+        document.getElementById('logsModal').style.display = 'none';
     }
     
     // Export Monthly Summary

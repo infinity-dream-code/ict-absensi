@@ -82,6 +82,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/attendance-history', [\App\Http\Controllers\Admin\AttendanceHistoryController::class, 'index'])->name('attendance-history.index');
         Route::get('/attendance-history/export', [\App\Http\Controllers\Admin\AttendanceHistoryController::class, 'export'])->name('attendance-history.export');
         Route::get('/attendance-history/export-monthly', [\App\Http\Controllers\Admin\AttendanceHistoryController::class, 'exportMonthlySummary'])->name('attendance-history.export-monthly');
+        Route::get('/attendance-history/{attendanceId}/logs', [\App\Http\Controllers\Admin\AttendanceHistoryController::class, 'getLogs'])->name('attendance-history.logs');
         Route::get('/leave-history', [\App\Http\Controllers\Admin\LeaveHistoryController::class, 'index'])->name('leave-history.index');
         Route::put('/leave-history/{leave}', [\App\Http\Controllers\Admin\LeaveHistoryController::class, 'update'])->name('leave-history.update');
         Route::delete('/leave-history/{leave}', [\App\Http\Controllers\Admin\LeaveHistoryController::class, 'destroy'])->name('leave-history.destroy');

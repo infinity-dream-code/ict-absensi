@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Models\Attendance;
+use App\Models\AttendanceLog;
 use App\Models\Holiday;
 use App\Models\User;
 use Carbon\Carbon;
@@ -28,7 +29,7 @@ class AttendanceHistoryController extends Controller
 
     public function index(Request $request)
     {
-        $query = Attendance::with('user')->orderBy('attendance_date', 'desc')->orderBy('check_in', 'desc');
+        $query = Attendance::with(['user', 'logs'])->orderBy('attendance_date', 'desc')->orderBy('check_in', 'desc');
 
         // Filter by date
         if ($request->filled('date_from')) {
@@ -158,5 +159,28 @@ class AttendanceHistoryController extends Controller
         }
         
         return Excel::download(new MonthlyAttendanceSummaryExport($year, $month), $filename);
+    }
+
+    public function getLogs(Request $request, $attendanceId)
+    {
+        $attendance = Attendance::with('user')->findOrFail($attendanceId);
+        
+        // Verify user is admin
+        if (!Auth::check() || Auth::user()->role !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+
+        $logs = AttendanceLog::where('attendance_id', $attendanceId)
+            ->orderBy('check_in_time', 'asc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'attendance' => $attendance,
+            'logs' => $logs
+        ]);
     }
 }

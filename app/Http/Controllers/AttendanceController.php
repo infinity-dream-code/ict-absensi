@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use App\Models\Attendance;
+use App\Models\AttendanceLog;
 use Illuminate\Support\Facades\Storage;
 use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 use Carbon\Carbon;
@@ -26,7 +27,7 @@ class AttendanceController extends Controller
     public function index()
     {
         $today = Carbon::today('Asia/Jakarta');
-        $attendance = Attendance::where('user_id', Auth::id())
+        $attendance = Attendance::with('logs')->where('user_id', Auth::id())
             ->whereDate('attendance_date', $today)
             ->first();
 
@@ -56,16 +57,18 @@ class AttendanceController extends Controller
         ]);
 
         $today = Carbon::today('Asia/Jakarta');
+        $now = Carbon::now('Asia/Jakarta');
 
-        // Check if already checked in today
+        // Get or create attendance record for today
         $existing = Attendance::where('user_id', Auth::id())
             ->whereDate('attendance_date', $today)
             ->first();
 
-        if ($existing && $existing->check_in) {
+        // Prevent check-in if already checked out today
+        if ($existing && $existing->check_out) {
             return response()->json([
                 'success' => false,
-                'message' => 'Anda sudah check-in hari ini!'
+                'message' => 'Anda sudah check-out hari ini. Tidak dapat check-in lagi setelah check-out.'
             ], 400);
         }
 
@@ -145,13 +148,15 @@ class AttendanceController extends Controller
         }
 
         // Handle image upload to Cloudinary
+        $imageUrl = null;
         if ($request->hasFile('image')) {
             try {
                 $uploadedFile = Cloudinary::upload($request->file('image')->getRealPath(), [
                     'folder' => 'attendance_images',
                     'resource_type' => 'image'
                 ]);
-                $data['image'] = $uploadedFile->getSecurePath();
+                $imageUrl = $uploadedFile->getSecurePath();
+                $data['image'] = $imageUrl;
             } catch (\Exception $e) {
                 return response()->json([
                     'success' => false,
@@ -160,12 +165,34 @@ class AttendanceController extends Controller
             }
         }
 
+        // Create or update attendance record
         if ($existing) {
+            // Update attendance with latest check-in data
+            // Keep the first check_in time if this is not the first check-in
+            if (!$existing->check_in) {
+                $data['check_in'] = $now;
+            }
             $existing->update($data);
             $attendance = $existing;
         } else {
+            // First check-in of the day
+            $data['check_in'] = $now;
             $attendance = Attendance::create($data);
         }
+
+        // Save log for this check-in
+        $logData = [
+            'attendance_id' => $attendance->id,
+            'check_in_time' => $now,
+            'status' => $request->work_type,
+            'notes' => $request->notes,
+            'latitude' => $request->latitude,
+            'longitude' => $request->longitude,
+            'location_name' => $locationName,
+            'image' => $imageUrl,
+        ];
+        
+        AttendanceLog::create($logData);
 
         $message = 'Check-in berhasil!';
         if ($request->work_type === 'WFO' && isset($data['location_valid']) && !$data['location_valid']) {
