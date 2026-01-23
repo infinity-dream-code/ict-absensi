@@ -61,4 +61,45 @@ class LeaveHistoryController extends Controller
 
         return view('admin.leave-history.index', compact('leaves'));
     }
+
+    public function update(Request $request, Leave $leave)
+    {
+        $request->validate([
+            'leave_date' => 'required|date',
+            'leave_type' => 'required|in:cuti,izin,sakit',
+        ]);
+
+        // Check if the new date already has a leave request for this user (excluding current leave)
+        $existing = Leave::where('user_id', $leave->user_id)
+            ->where('leave_date', $request->leave_date)
+            ->where('id', '!=', $leave->id)
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Karyawan sudah memiliki perizinan pada tanggal tersebut!'
+            ], 400);
+        }
+
+        $leave->update([
+            'leave_date' => $request->leave_date,
+            'leave_type' => $request->leave_type,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data perizinan berhasil diperbarui!'
+        ]);
+    }
+
+    public function destroy(Leave $leave)
+    {
+        $leave->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data perizinan berhasil dihapus!'
+        ]);
+    }
 }
