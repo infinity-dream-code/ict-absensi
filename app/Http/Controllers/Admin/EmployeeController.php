@@ -63,6 +63,14 @@ class EmployeeController extends Controller
         return redirect()->route('admin.employees.index')->with('success', "Karyawan berhasil ditambahkan! Username: {$username}, Password default: 123456");
     }
 
+    public function show(User $employee)
+    {
+        if ($employee->role !== 'user') {
+            return redirect()->route('admin.employees.index')->with('error', 'Akses ditolak!');
+        }
+        return redirect()->route('admin.employees.edit', $employee);
+    }
+
     public function edit(User $employee)
     {
         if ($employee->role !== 'user') {
