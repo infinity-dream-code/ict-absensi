@@ -25,7 +25,7 @@ class LeaveController extends Controller
             'tanggal_akhir' => 'required|date|after_or_equal:tanggal_awal',
             'jenis' => 'required|in:cuti,izin,sakit',
             'keterangan' => 'nullable|string|max:500',
-            'foto' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'foto' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
         ]);
 
         // Find user by username_mobile

@@ -405,7 +405,7 @@
                         </button>
                         <p style="font-size: 12px; color: #6b7280; margin-top: 6px;">
                             <i class="fas fa-info-circle"></i> 
-                            Upload foto surat dokter atau dokumen pendukung (Max: 2MB)
+                            Upload foto surat dokter atau dokumen pendukung (Max: 5MB)
                         </p>
                         <div id="attachmentPreview"></div>
                     </div>

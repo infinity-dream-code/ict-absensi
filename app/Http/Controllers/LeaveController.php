@@ -33,7 +33,7 @@ class LeaveController extends Controller
             'leave_date_to' => 'required|date|after_or_equal:leave_date_from',
             'leave_type' => 'required|in:cuti,izin,sakit',
             'notes' => 'nullable|string|max:500',
-            'attachment' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'attachment' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
         ]);
 
         $dateFrom = Carbon::parse($request->leave_date_from);

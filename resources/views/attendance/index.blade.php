@@ -577,7 +577,7 @@
                             <i class="fas fa-image"></i>
                             <span>Pilih Gambar</span>
                         </button>
-                        <p class="text-small">Format: JPG, PNG, GIF (Max: 2MB)</p>
+                        <p class="text-small">Format: JPG, PNG, GIF (Max: 5MB)</p>
                         <div id="imagePreview"></div>
                     </div>
 

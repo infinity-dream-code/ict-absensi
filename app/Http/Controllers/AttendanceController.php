@@ -41,7 +41,7 @@ class AttendanceController extends Controller
         $request->validate([
             'work_type' => 'required|in:WFA,WFO,WFH',
             'notes' => 'nullable|string|max:500',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
         ]);
