@@ -22,7 +22,7 @@ class EmployeeController extends Controller
 
     public function index()
     {
-        $employees = User::where('role', 'user')->latest()->paginate(10);
+        $employees = User::where('role', 'user')->latest()->get();
         return view('admin.employees.index', compact('employees'));
     }
 
