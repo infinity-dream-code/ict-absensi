@@ -97,9 +97,7 @@ class LeaveHistoryController extends Controller
     {
         $leave->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Data perizinan berhasil dihapus!'
-        ]);
+        return redirect()->route('admin.leave-history.index')
+            ->with('success', 'Data perizinan berhasil dihapus!');
     }
 }

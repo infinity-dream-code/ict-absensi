@@ -28,14 +28,27 @@ class DashboardController extends Controller
         // Total karyawan
         $totalEmployees = User::where('role', 'user')->count();
         
-        // Total yang sudah check-in hari ini
-        $totalCheckIn = Attendance::whereDate('attendance_date', $today)
+        // Ambil semua absensi hari ini yang punya check_in, lalu ambil CHECK-IN PALING AWAL per user
+        $todayAttendancesWithCheckIn = Attendance::with('user')
+            ->whereDate('attendance_date', $today)
             ->whereNotNull('check_in')
-            ->count();
+            ->get();
         
-        // Total yang sudah check-out hari ini
+        $earliestCheckInPerUser = $todayAttendancesWithCheckIn
+            ->groupBy('user_id')
+            ->map(function ($attendances) {
+                return $attendances->sortBy('check_in')->first();
+            });
+        
+        // Total yang sudah check-in hari ini = jumlah user unik yang punya check-in
+        $totalCheckIn = $earliestCheckInPerUser->count();
+        
+        // Total yang sudah check-out hari ini (distinct user)
         $totalCheckOut = Attendance::whereDate('attendance_date', $today)
             ->whereNotNull('check_out')
+            ->select('user_id')
+            ->groupBy('user_id')
+            ->get()
             ->count();
         
         // Get settings untuk menentukan tepat waktu atau terlambat
@@ -43,54 +56,36 @@ class DashboardController extends Controller
         $checkInEndTime = $settings->check_in_end ?: '09:00:00';
         $checkInEnd = Carbon::parse($today->format('Y-m-d') . ' ' . $checkInEndTime, 'Asia/Jakarta');
         
-        // Total tepat waktu (check-in sebelum atau sama dengan check_in_end)
-        $totalOnTime = Attendance::whereDate('attendance_date', $today)
-            ->whereNotNull('check_in')
-            ->get()
-            ->filter(function($attendance) use ($checkInEnd) {
-                $checkInTime = Carbon::parse($attendance->check_in, 'Asia/Jakarta');
-                return $checkInTime->lte($checkInEnd);
-            })
-            ->count();
+        // Tepat waktu / terlambat dihitung dari CHECK-IN PALING AWAL per user
+        $totalOnTime = $earliestCheckInPerUser->filter(function ($attendance) use ($checkInEnd) {
+            $checkInTime = Carbon::parse($attendance->check_in, 'Asia/Jakarta');
+            return $checkInTime->lte($checkInEnd);
+        })->count();
         
-        // Total terlambat (check-in setelah check_in_end)
-        $totalLate = Attendance::whereDate('attendance_date', $today)
-            ->whereNotNull('check_in')
-            ->get()
-            ->filter(function($attendance) use ($checkInEnd) {
-                $checkInTime = Carbon::parse($attendance->check_in, 'Asia/Jakarta');
-                return $checkInTime->gt($checkInEnd);
-            })
-            ->count();
+        $totalLate = $earliestCheckInPerUser->filter(function ($attendance) use ($checkInEnd) {
+            $checkInTime = Carbon::parse($attendance->check_in, 'Asia/Jakarta');
+            return $checkInTime->gt($checkInEnd);
+        })->count();
         
-        // Get 5 aktivitas terbaru (check-in dan check-out)
-        $recentActivities = collect();
+        // 5 aktivitas terbaru: pakai check-in PALING AWAL per user (satu per user), gabung dengan check-out
+        $checkIns = $earliestCheckInPerUser->map(function ($attendance) use ($checkInEnd) {
+            $checkInTime = Carbon::parse($attendance->check_in, 'Asia/Jakarta');
+            $isLate = $checkInTime->gt($checkInEnd);
+            return [
+                'user_name' => $attendance->user->name,
+                'activity' => 'Check-In',
+                'time' => $attendance->check_in,
+                'status' => $isLate ? 'Terlambat' : 'Tepat Waktu',
+                'is_late' => $isLate,
+                'timestamp' => $checkInTime->timestamp
+            ];
+        });
         
-        // Get check-ins hari ini
-        $checkIns = Attendance::with('user')
-            ->whereDate('attendance_date', $today)
-            ->whereNotNull('check_in')
-            ->get()
-            ->map(function($attendance) use ($checkInEnd) {
-                $checkInTime = Carbon::parse($attendance->check_in, 'Asia/Jakarta');
-                $isLate = $checkInTime->gt($checkInEnd);
-                
-                return [
-                    'user_name' => $attendance->user->name,
-                    'activity' => 'Check-In',
-                    'time' => $attendance->check_in,
-                    'status' => $isLate ? 'Terlambat' : 'Tepat Waktu',
-                    'is_late' => $isLate,
-                    'timestamp' => Carbon::parse($attendance->check_in, 'Asia/Jakarta')->timestamp
-                ];
-            });
-        
-        // Get check-outs hari ini
         $checkOuts = Attendance::with('user')
             ->whereDate('attendance_date', $today)
             ->whereNotNull('check_out')
             ->get()
-            ->map(function($attendance) {
+            ->map(function ($attendance) {
                 return [
                     'user_name' => $attendance->user->name,
                     'activity' => 'Check-Out',
@@ -101,7 +96,6 @@ class DashboardController extends Controller
                 ];
             });
         
-        // Gabungkan dan urutkan berdasarkan timestamp terbaru
         $recentActivities = $checkIns->merge($checkOuts)
             ->sortByDesc('timestamp')
             ->take(5)

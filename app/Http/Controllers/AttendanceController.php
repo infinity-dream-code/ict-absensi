@@ -167,20 +167,24 @@ class AttendanceController extends Controller
 
         // Create or update attendance record
         if ($existing) {
-            // Update attendance with latest check-in data
-            // Keep the first check_in time if this is not the first check-in
             if (!$existing->check_in) {
+                // First check-in of the day (record existed but no check_in yet)
                 $data['check_in'] = $now;
+                $existing->update($data);
+                $attendance = $existing;
+            } else {
+                // Absen kedua dan seterusnya: JANGAN update record utama, hanya tambah ke log
+                // Check-in yang dipakai tetap yang paling awal (jam 9), jam 12 hanya ke log
+                $attendance = $existing;
+                // Tidak update $existing sama sekali
             }
-            $existing->update($data);
-            $attendance = $existing;
         } else {
             // First check-in of the day
             $data['check_in'] = $now;
             $attendance = Attendance::create($data);
         }
 
-        // Save log for this check-in
+        // Simpan log untuk setiap check-in (termasuk absen kedua di hari yang sama)
         $logData = [
             'attendance_id' => $attendance->id,
             'check_in_time' => $now,

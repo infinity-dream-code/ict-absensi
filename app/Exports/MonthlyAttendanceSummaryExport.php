@@ -112,18 +112,20 @@ class MonthlyAttendanceSummaryExport implements FromCollection, WithHeadings, Wi
             }
         }
 
-        // Pre-group attendances by user_id for faster lookup
+        // Pre-group attendances by user_id + date; simpan yang CHECK-IN PALING AWAL per user per hari
         $attendancesByUser = [];
         foreach ($attendances as $attendance) {
             $userId = $attendance->user_id;
             if (!isset($attendancesByUser[$userId])) {
                 $attendancesByUser[$userId] = [];
             }
-            // attendance_date is already a date, just format it
-            $dateStr = $attendance->attendance_date instanceof Carbon 
+            $dateStr = $attendance->attendance_date instanceof Carbon
                 ? $attendance->attendance_date->format('Y-m-d')
                 : Carbon::parse($attendance->attendance_date)->format('Y-m-d');
-            $attendancesByUser[$userId][$dateStr] = $attendance;
+            $existing = $attendancesByUser[$userId][$dateStr] ?? null;
+            if ($existing === null || ($attendance->check_in && $existing->check_in && $attendance->check_in < $existing->check_in)) {
+                $attendancesByUser[$userId][$dateStr] = $attendance;
+            }
         }
 
         // Pre-group leaves by user_id for faster lookup

@@ -280,8 +280,13 @@
         box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
     }
     
-    .btn-view-logs {
-        padding: 6px 12px;
+    .expand-cell {
+        vertical-align: middle;
+        padding: 12px 16px;
+    }
+    
+    .btn-expand-logs {
+        padding: 6px 10px;
         background: #6366f1;
         color: white;
         border: none;
@@ -292,15 +297,74 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 6px;
-        transition: all 0.2s;
         min-width: 32px;
+        transition: all 0.2s;
     }
     
-    .btn-view-logs:hover {
+    .btn-expand-logs:hover {
         background: #4f46e5;
         transform: translateY(-1px);
         box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    }
+    
+    .btn-expand-logs[aria-expanded="true"] {
+        background: #64748b;
+    }
+    
+    .logs-expanded-row td {
+        padding: 0;
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: top;
+    }
+    
+    .logs-expanded-content {
+        padding: 16px 16px 16px 64px;
+    }
+    
+    .logs-expanded-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .log-items-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    
+    .log-items-table th {
+        padding: 10px 12px;
+        text-align: left;
+        background: #f1f5f9;
+        font-weight: 600;
+        color: #64748b;
+        font-size: 11px;
+        text-transform: uppercase;
+    }
+    
+    .log-items-table td {
+        padding: 12px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #374151;
+    }
+    
+    .log-items-table tr:last-child td {
+        border-bottom: none;
+    }
+    
+    .log-items-table .btn-view-location {
+        padding: 4px 10px;
+        font-size: 11px;
     }
     
     .location-modal {
@@ -502,6 +566,7 @@
         <table>
             <thead>
                 <tr>
+                    <th style="width: 48px;"></th>
                     <th>Tanggal</th>
                     <th>NIK</th>
                     <th>Nama</th>
@@ -533,7 +598,7 @@
                 
                 @if($showDateHeader && $holiday && !empty($holiday->notes))
                 <tr>
-                    <td colspan="10" style="padding: 0;">
+                    <td colspan="11" style="padding: 0;">
                         <div class="holiday-note">
                             <div class="holiday-note-title">
                                 <i class="fas fa-calendar-day"></i>
@@ -547,7 +612,16 @@
                 </tr>
                 @endif
                 
-                <tr>
+                <tr data-attendance-id="{{ $attendance->id }}" class="attendance-main-row">
+                    <td class="expand-cell">
+                        <button type="button" 
+                                class="btn-expand-logs" 
+                                onclick="toggleLogs({{ $attendance->id }}, this)"
+                                title="Tampilkan / sembunyikan log absensi"
+                                aria-expanded="false">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </td>
                     <td>{{ \Carbon\Carbon::parse($attendance->attendance_date)->locale('id')->isoFormat('D MMM YYYY') }}</td>
                     <td style="font-weight: 600;">{{ $attendance->user->nik }}</td>
                     <td>{{ $attendance->user->name }}</td>
@@ -634,23 +708,17 @@
                     </td>
                     <td>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-                            <button type="button" 
-                                    class="btn-view-logs" 
-                                    onclick="viewLogs({{ $attendance->id }})"
-                                    title="Lihat Log Absensi">
-                                <i class="fas fa-plus"></i>
-                            </button>
                             @if($attendance->latitude && $attendance->longitude)
                                 <button type="button" 
                                         class="btn-view-location" 
-                                        onclick="viewLocation({{ $attendance->latitude }}, {{ $attendance->longitude }}, '{{ $attendance->user->name }}', '{{ \Carbon\Carbon::parse($attendance->check_in)->setTimezone('Asia/Jakarta')->format('H:i:s') }}', '{{ $attendance->work_type }}', {{ $attendance->location_valid ? 'true' : 'false' }}, '{{ addslashes($attendance->location_name ?? '') }}')">
+                                        onclick="viewLocation({{ $attendance->latitude }}, {{ $attendance->longitude }}, '{{ addslashes($attendance->user->name) }}', '{{ \Carbon\Carbon::parse($attendance->check_in)->setTimezone('Asia/Jakarta')->format('H:i:s') }}', '{{ $attendance->work_type }}', {{ $attendance->location_valid ? 'true' : 'false' }}, '{{ addslashes($attendance->location_name ?? '') }}')">
                                     <i class="fas fa-map-marker-alt"></i> Lokasi
                                 </button>
                             @endif
                             @if($attendance->image)
                                 <button type="button" 
                                         class="btn-view-image" 
-                                        onclick="viewImage('{{ $attendance->image }}', '{{ $attendance->user->name }}')">
+                                        onclick="viewImage('{{ $attendance->image }}', '{{ addslashes($attendance->user->name) }}')">
                                     <i class="fas fa-image"></i> Gambar
                                 </button>
                             @endif
@@ -659,7 +727,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="10" class="empty-state">
+                    <td colspan="11" class="empty-state">
                         Tidak ada data absensi
                     </td>
                 </tr>
@@ -828,6 +896,23 @@
         document.getElementById('locationModal').style.display = 'none';
     }
     
+    function viewLocationForLog(attendanceId, logIndex) {
+        const data = window._logsByAttendance && window._logsByAttendance[attendanceId];
+        if (!data || !data.logs[logIndex]) return;
+        const log = data.logs[logIndex];
+        const attendance = data.attendance;
+        const timeStr = new Date(log.check_in_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        viewLocation(
+            log.latitude,
+            log.longitude,
+            attendance.user ? attendance.user.name : '',
+            timeStr,
+            log.status || 'WFA',
+            true,
+            log.location_name || ''
+        );
+    }
+    
     function viewImage(imageUrl, employeeName) {
         document.getElementById('imageEmployeeName').textContent = employeeName;
         document.getElementById('imageModalImage').src = imageUrl;
@@ -854,83 +939,107 @@
         }
     }
     
-    function viewLogs(attendanceId) {
-        document.getElementById('logsModal').style.display = 'flex';
-        document.getElementById('logsContent').innerHTML = `
-            <div style="text-align: center; padding: 40px;">
-                <div class="swal2-loader"></div>
-                <p style="margin-top: 16px; color: #6b7280;">Memuat log absensi...</p>
-            </div>
+    function toggleLogs(attendanceId, btn) {
+        const row = btn.closest('tr');
+        const nextRow = row.nextElementSibling;
+        const isExpanded = nextRow && nextRow.classList.contains('logs-expanded-row');
+        
+        if (isExpanded) {
+            nextRow.remove();
+            btn.setAttribute('aria-expanded', 'false');
+            btn.querySelector('i').className = 'fas fa-plus';
+            return;
+        }
+        
+        const expandedRow = document.createElement('tr');
+        expandedRow.className = 'logs-expanded-row';
+        expandedRow.setAttribute('data-attendance-logs', attendanceId);
+        expandedRow.innerHTML = `
+            <td colspan="11">
+                <div class="logs-expanded-content">
+                    <div class="logs-expanded-title">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <span>Memuat log absensi...</span>
+                    </div>
+                </div>
+            </td>
         `;
+        row.insertAdjacentElement('afterend', expandedRow);
+        btn.setAttribute('aria-expanded', 'true');
+        btn.querySelector('i').className = 'fas fa-minus';
         
         axios.get(`/admin/attendance-history/${attendanceId}/logs`)
             .then(response => {
                 const { attendance, logs } = response.data;
+                const container = expandedRow.querySelector('.logs-expanded-content');
                 
-                if (logs.length === 0) {
-                    document.getElementById('logsContent').innerHTML = `
-                        <div style="text-align: center; padding: 40px; color: #6b7280;">
-                            <i class="fas fa-info-circle" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
-                            <p>Tidak ada log absensi untuk absensi ini.</p>
+                if (!logs || logs.length === 0) {
+                    container.innerHTML = `
+                        <div class="logs-expanded-title" style="color: #6b7280;">
+                            <i class="fas fa-info-circle"></i>
+                            <span>Tidak ada log absensi untuk absensi ini.</span>
                         </div>
                     `;
                     return;
                 }
                 
-                let logsHtml = `
-                    <div style="margin-bottom: 24px; padding: 16px; background: #f9fafb; border-radius: 8px;">
-                        <p style="margin: 0; font-size: 14px;"><strong>Nama:</strong> ${attendance.user.name}</p>
-                        <p style="margin: 8px 0 0 0; font-size: 14px;"><strong>NIK:</strong> ${attendance.user.nik}</p>
-                        <p style="margin: 8px 0 0 0; font-size: 14px;"><strong>Tanggal:</strong> ${new Date(attendance.attendance_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                    </div>
-                    <div style="display: flex; flex-direction: column; gap: 16px;">
-                `;
+                window._logsByAttendance = window._logsByAttendance || {};
+                window._logsByAttendance[attendanceId] = { logs, attendance };
                 
+                let tableRows = '';
                 logs.forEach((log, index) => {
-                    const checkInTime = new Date(log.check_in_time).toLocaleString('id-ID', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
+                    const checkInTime = new Date(log.check_in_time).toLocaleTimeString('id-ID', {
                         hour: '2-digit',
                         minute: '2-digit',
                         second: '2-digit'
                     });
-                    
                     const statusBadgeClass = log.status === 'WFA' ? 'badge-wfa' : (log.status === 'WFO' ? 'badge-wfo' : 'badge-wfh');
+                    const hasLocation = log.latitude && log.longitude;
+                    const locBtn = hasLocation ? `
+                        <button type="button" class="btn-view-location" onclick="viewLocationForLog(${attendanceId}, ${index})">
+                            <i class="fas fa-map-marker-alt"></i> Lokasi
+                        </button>
+                    ` : '<span style="color: #9ca3af;">-</span>';
                     
-                    logsHtml += `
-                        <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; background: white;">
-                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
-                                <div>
-                                    <span class="badge ${statusBadgeClass}" style="margin-bottom: 8px; display: inline-block;">${log.status}</span>
-                                    <p style="margin: 4px 0 0 0; font-size: 14px; color: #6b7280;"><strong>Waktu:</strong> ${checkInTime}</p>
-                                </div>
-                                <span style="font-size: 12px; color: #9ca3af;">#${index + 1}</span>
-                            </div>
-                            ${log.notes ? `<p style="margin: 8px 0; font-size: 14px; color: #374151;"><strong>Catatan:</strong> ${log.notes}</p>` : ''}
-                            ${log.location_name ? `<p style="margin: 8px 0; font-size: 14px; color: #374151;"><strong>Lokasi:</strong> ${log.location_name}</p>` : ''}
-                            ${log.latitude && log.longitude ? `
-                                <p style="margin: 8px 0; font-size: 14px; color: #374151;">
-                                    <strong>Koordinat:</strong> ${log.latitude}, ${log.longitude}
-                                </p>
-                            ` : ''}
-                            ${log.image ? `
-                                <div style="margin-top: 12px;">
-                                    <img src="${log.image}" alt="Gambar absensi" style="max-width: 100%; max-height: 200px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                                </div>
-                            ` : ''}
-                        </div>
+                    const locDisplay = log.location_name ? String(log.location_name).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '-';
+                    tableRows += `
+                        <tr>
+                            <td style="width: 40px;">${index + 1}</td>
+                            <td>${checkInTime}</td>
+                            <td><span class="badge ${statusBadgeClass}">${log.status}</span></td>
+                            <td>${locDisplay}</td>
+                            <td>${locBtn}</td>
+                        </tr>
                     `;
                 });
                 
-                logsHtml += '</div>';
-                document.getElementById('logsContent').innerHTML = logsHtml;
+                container.innerHTML = `
+                    <div class="logs-expanded-title">
+                        <i class="fas fa-list"></i>
+                        <span>Log Absensi</span>
+                    </div>
+                    <table class="log-items-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;">#</th>
+                                <th>Waktu</th>
+                                <th>Jenis</th>
+                                <th>Lokasi</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+                `;
             })
             .catch(error => {
-                document.getElementById('logsContent').innerHTML = `
-                    <div style="text-align: center; padding: 40px; color: #dc2626;">
-                        <i class="fas fa-exclamation-circle" style="font-size: 48px; margin-bottom: 16px;"></i>
-                        <p>Gagal memuat log absensi. Silakan coba lagi.</p>
+                const container = expandedRow.querySelector('.logs-expanded-content');
+                container.innerHTML = `
+                    <div class="logs-expanded-title" style="color: #dc2626;">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span>Gagal memuat log absensi. Silakan coba lagi.</span>
                     </div>
                 `;
                 console.error('Error loading logs:', error);
@@ -938,7 +1047,8 @@
     }
     
     function closeLogsModal() {
-        document.getElementById('logsModal').style.display = 'none';
+        const m = document.getElementById('logsModal');
+        if (m) m.style.display = 'none';
     }
     
     // Export Monthly Summary

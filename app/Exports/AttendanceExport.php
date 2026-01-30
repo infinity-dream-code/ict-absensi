@@ -20,11 +20,12 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
     }
 
     /**
+     * Satu baris per user per hari: pakai CHECK-IN PALING AWAL (status & jam masuk), check_out paling akhir.
      * @return \Illuminate\Support\Collection
      */
     public function collection()
     {
-        $query = Attendance::with('user')->orderBy('attendance_date', 'desc')->orderBy('check_in', 'desc');
+        $query = Attendance::with('user')->orderBy('attendance_date', 'desc')->orderBy('check_in', 'asc');
 
         // Filter by date
         if (isset($this->filters['date_from']) && $this->filters['date_from']) {
@@ -54,7 +55,23 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
             });
         }
 
-        return $query->get();
+        $all = $query->get();
+        // Group by user_id + date, ambil record CHECK-IN PALING AWAL; jam pulang = check_out paling akhir hari itu
+        $grouped = $all->groupBy(function ($a) {
+            return $a->user_id . '_' . $a->attendance_date->format('Y-m-d');
+        });
+        $result = $grouped->map(function ($items) {
+            $earliest = $items->sortBy('check_in')->first();
+            $latestCheckOut = $items->filter(fn ($a) => $a->check_out)->max('check_out');
+            if ($latestCheckOut !== null) {
+                $earliest->setAttribute('check_out', $latestCheckOut);
+            }
+            return $earliest;
+        })->sortByDesc(function ($a) {
+            return $a->attendance_date->format('Y-m-d') . ' ' . ($a->check_in ? $a->check_in->format('H:i:s') : '');
+        })->values();
+
+        return $result;
     }
 
     /**
