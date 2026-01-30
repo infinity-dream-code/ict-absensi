@@ -335,6 +335,10 @@
                 <i class="fas fa-users"></i>
                 <span>Kelola Karyawan</span>
             </a>
+            <a href="{{ route('admin.today-attendance.index') }}" class="nav-item {{ request()->routeIs('admin.today-attendance.*') ? 'active' : '' }}">
+                <i class="fas fa-calendar-check"></i>
+                <span>Absen Hari Ini</span>
+            </a>
             <a href="{{ route('admin.attendance-history.index') }}" class="nav-item {{ request()->routeIs('admin.attendance-history.*') ? 'active' : '' }}">
                 <i class="fas fa-history"></i>
                 <span>History Absensi</span>

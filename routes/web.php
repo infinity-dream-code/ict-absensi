@@ -75,6 +75,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
     // Admin Protected Routes
     Route::middleware('auth')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/today-attendance', [\App\Http\Controllers\Admin\TodayAttendanceController::class, 'index'])->name('today-attendance.index');
         Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
         Route::put('/settings', [SettingController::class, 'update'])->name('settings.update');
         Route::resource('employees', EmployeeController::class);
