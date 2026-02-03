@@ -531,12 +531,12 @@
         </div>
         
         <div class="form-group">
-            <label for="search" class="form-label">Cari (Nama/NIK)</label>
+            <label for="search" class="form-label">Cari (Nama/NIP)</label>
             <input type="text" 
                    id="search" 
                    name="search" 
                    value="{{ request('search') }}"
-                   placeholder="Cari nama atau NIK"
+                   placeholder="Cari nama atau NIP"
                    class="form-input">
         </div>
         
@@ -568,7 +568,7 @@
                 <tr>
                     <th style="width: 48px;"></th>
                     <th>Tanggal</th>
-                    <th>NIK</th>
+                    <th>NIP</th>
                     <th>Nama</th>
                     <th>Jenis</th>
                     <th>Check-In</th>
@@ -623,7 +623,7 @@
                         </button>
                     </td>
                     <td>{{ \Carbon\Carbon::parse($attendance->attendance_date)->locale('id')->isoFormat('D MMM YYYY') }}</td>
-                    <td style="font-weight: 600;">{{ $attendance->user->nik }}</td>
+                    <td style="font-weight: 600;">{{ $attendance->user->nip ?? '-' }}</td>
                     <td>{{ $attendance->user->name }}</td>
                     <td>
                         <span class="badge badge-{{ strtolower($attendance->work_type) }}">

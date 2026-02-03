@@ -20,12 +20,14 @@ class User extends Authenticatable implements JWTSubject
      */
     protected $fillable = [
         'nik',
+        'nip',
         'username',
         'username_mobile',
         'name',
         'email',
         'password',
         'role',
+        'jenis',
     ];
 
     /**
@@ -45,6 +47,7 @@ class User extends Authenticatable implements JWTSubject
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'jenis' => 'boolean',
     ];
 
     public function attendances()

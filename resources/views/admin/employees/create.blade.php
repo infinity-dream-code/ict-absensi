@@ -160,6 +160,20 @@
         </div>
         
         <div class="form-group">
+            <label for="nip" class="form-label">
+                NIP
+            </label>
+            <input type="text" 
+                   id="nip" 
+                   name="nip" 
+                   value="{{ old('nip') }}"
+                   class="form-input @error('nip') error @enderror">
+            @error('nip')
+                <p class="error-message">{{ $message }}</p>
+            @enderror
+        </div>
+        
+        <div class="form-group">
             <label for="name" class="form-label">
                 Nama <span class="required">*</span>
             </label>
@@ -172,6 +186,15 @@
             @error('name')
                 <p class="error-message">{{ $message }}</p>
             @enderror
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Jenis (dihitung di dashboard)</label>
+            <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="hidden" name="jenis" value="0">
+                <input type="checkbox" name="jenis" value="1" {{ old('jenis', true) ? 'checked' : '' }}>
+                <span>Centang = karyawan dihitung di dashboard (termasuk tidak absen)</span>
+            </label>
         </div>
         
         <div class="form-group">

@@ -75,11 +75,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
     // Admin Protected Routes
     Route::middleware('auth')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-        Route::get('/today-attendance', [\App\Http\Controllers\Admin\TodayAttendanceController::class, 'index'])->name('today-attendance.index');
+        Route::get('/today-attendance', function (\Illuminate\Http\Request $request) {
+            return redirect()->route('admin.dashboard', $request->only('date'));
+        })->name('today-attendance.index');
         Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
         Route::put('/settings', [SettingController::class, 'update'])->name('settings.update');
         Route::resource('employees', EmployeeController::class);
         Route::post('/employees/{employee}/reset-password', [EmployeeController::class, 'resetPassword'])->name('employees.reset-password');
+        Route::patch('/employees/{employee}/toggle-jenis', [EmployeeController::class, 'toggleJenis'])->name('employees.toggle-jenis');
         Route::get('/attendance-history', [\App\Http\Controllers\Admin\AttendanceHistoryController::class, 'index'])->name('attendance-history.index');
         Route::get('/attendance-history/export', [\App\Http\Controllers\Admin\AttendanceHistoryController::class, 'export'])->name('attendance-history.export');
         Route::get('/attendance-history/export-monthly', [\App\Http\Controllers\Admin\AttendanceHistoryController::class, 'exportMonthlySummary'])->name('attendance-history.export-monthly');

@@ -135,6 +135,11 @@
         background: #fde68a;
     }
     
+    .form-jenis-toggle { margin: 0; }
+    .checkbox-jenis { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; }
+    .checkbox-jenis input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+    .check-label { font-size: 13px; color: #374151; }
+    
     .empty-state {
         padding: 48px;
         text-align: center;
@@ -319,7 +324,9 @@
             <thead>
                 <tr>
                     <th>NIK</th>
+                    <th>NIP</th>
                     <th>Nama</th>
+                    <th>Jenis</th>
                     <th>Aksi</th>
                 </tr>
             </thead>
@@ -327,7 +334,19 @@
                 @forelse($employees as $employee)
                 <tr class="table-row">
                     <td style="font-weight: 600;">{{ $employee->nik }}</td>
+                    <td>{{ $employee->nip ?? '-' }}</td>
                     <td>{{ $employee->name }}</td>
+                    <td>
+                        <form action="{{ route('admin.employees.toggle-jenis', $employee) }}" method="POST" class="form-jenis-toggle" style="display: inline;">
+                            @csrf
+                            @method('PATCH')
+                            <input type="hidden" name="jenis" value="0">
+                            <label class="checkbox-jenis">
+                                <input type="checkbox" name="jenis" value="1" {{ ($employee->jenis ?? true) ? 'checked' : '' }} onchange="this.form.submit()">
+                                <span class="check-label">Dihitung</span>
+                            </label>
+                        </form>
+                    </td>
                     <td>
                         <div class="action-buttons">
                             <a href="{{ route('admin.employees.edit', $employee) }}" class="btn-action btn-edit">
@@ -354,7 +373,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="3" class="empty-state-cell">
+                    <td colspan="5" class="empty-state-cell">
                         Tidak ada data karyawan
                     </td>
                 </tr>

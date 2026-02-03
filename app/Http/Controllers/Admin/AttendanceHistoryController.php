@@ -42,7 +42,7 @@ class AttendanceHistoryController extends Controller
         // Filter by year and month
         if ($request->filled('year') && $request->filled('month')) {
             $query->whereYear('attendance_date', $request->year)
-                  ->whereMonth('attendance_date', $request->month);
+                ->whereMonth('attendance_date', $request->month);
         } elseif ($request->filled('year')) {
             $query->whereYear('attendance_date', $request->year);
         } elseif ($request->filled('month')) {
@@ -54,32 +54,32 @@ class AttendanceHistoryController extends Controller
             $query->where('work_type', $request->work_type);
         }
 
-        // Search by name or NIK
+        // Search by name or NIP
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->whereHas('user', function($q) use ($search) {
+            $query->whereHas('user', function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('nik', 'like', "%{$search}%");
+                    ->orWhere('nip', 'like', "%{$search}%");
             });
         }
 
         // Get all attendances first
         $allAttendances = $query->get();
-        
+
         // Group by date
-        $groupedByDate = $allAttendances->groupBy(function($attendance) {
+        $groupedByDate = $allAttendances->groupBy(function ($attendance) {
             return Carbon::parse($attendance->attendance_date)->format('Y-m-d');
         });
-        
+
         // Get unique dates and sort descending
         $dates = $groupedByDate->keys()->sortDesc()->values();
-        
+
         // Paginate dates (per day)
         $perPage = 10; // 10 hari per halaman
         $currentPage = $request->get('page', 1);
         $offset = ($currentPage - 1) * $perPage;
         $datesForPage = $dates->slice($offset, $perPage);
-        
+
         // Get attendances for these dates only
         $attendances = collect();
         foreach ($datesForPage as $date) {
@@ -87,11 +87,11 @@ class AttendanceHistoryController extends Controller
                 $attendances = $attendances->merge($groupedByDate->get($date));
             }
         }
-        
+
         // Sort by date desc, then by check_in desc
-        $attendances = $attendances->sortByDesc(function($attendance) {
-            return Carbon::parse($attendance->attendance_date)->format('Y-m-d') . ' ' . 
-                   ($attendance->check_in ? Carbon::parse($attendance->check_in)->format('H:i:s') : '00:00:00');
+        $attendances = $attendances->sortByDesc(function ($attendance) {
+            return Carbon::parse($attendance->attendance_date)->format('Y-m-d') . ' ' .
+                ($attendance->check_in ? Carbon::parse($attendance->check_in)->format('H:i:s') : '00:00:00');
         })->values();
 
         // Create paginator manually
@@ -127,7 +127,7 @@ class AttendanceHistoryController extends Controller
         ];
 
         $filename = 'Export_Absensi_' . date('Y-m-d_His') . '.xlsx';
-        
+
         return Excel::download(new AttendanceExport($filters), $filename);
     }
 
@@ -135,16 +135,16 @@ class AttendanceHistoryController extends Controller
     {
         $year = $request->filled('year') && $request->year !== '' ? (int) $request->year : null;
         $month = $request->filled('month') && $request->month !== '' ? (int) $request->month : null;
-        
+
         // Validasi jika dipilih harus valid
         if ($year !== null && ($year < 2020 || $year > 2100)) {
             return back()->withErrors(['year' => 'Tahun harus antara 2020 dan 2100']);
         }
-        
+
         if ($month !== null && ($month < 1 || $month > 12)) {
             return back()->withErrors(['month' => 'Bulan harus antara 1 dan 12']);
         }
-        
+
         // Generate filename
         if ($year && $month) {
             $monthName = Carbon::create($year, $month, 1)->locale('id')->isoFormat('MMMM_YYYY');
@@ -157,14 +157,14 @@ class AttendanceHistoryController extends Controller
         } else {
             $filename = 'Rekap_Absensi_Semua.xlsx';
         }
-        
+
         return Excel::download(new MonthlyAttendanceSummaryExport($year, $month), $filename);
     }
 
     public function getLogs(Request $request, $attendanceId)
     {
         $attendance = Attendance::with('user')->findOrFail($attendanceId);
-        
+
         // Verify user is admin
         if (!Auth::check() || Auth::user()->role !== 'admin') {
             return response()->json([

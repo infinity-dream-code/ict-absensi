@@ -1,6 +1,6 @@
 @extends('admin.layouts.app')
 
-@section('title', 'Absen Hari Ini')
+@section('title', 'Dashboard')
 
 @section('styles')
 <style>
@@ -235,11 +235,11 @@
 
 @section('content')
 <div class="page-header">
-    <h1 class="page-title">Absen Hari Ini</h1>
-    <p class="page-subtitle">Lihat ringkasan absensi per tanggal</p>
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-subtitle">Ringkasan absensi per tanggal</p>
 </div>
 
-<form method="GET" action="{{ route('admin.today-attendance.index') }}" class="filter-card">
+<form method="GET" action="{{ route('admin.dashboard') }}" class="filter-card">
     <div class="filter-form">
         <label for="date">Pilih Tanggal</label>
         <input type="date" 

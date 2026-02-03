@@ -35,7 +35,9 @@ class EmployeeController extends Controller
     {
         $request->validate([
             'nik' => 'required|string|unique:users,nik',
+            'nip' => 'nullable|string|max:255',
             'name' => 'required|string|max:255',
+            'jenis' => 'nullable|boolean',
         ]);
 
         // Generate username from first name (lowercase)
@@ -53,11 +55,13 @@ class EmployeeController extends Controller
 
         User::create([
             'nik' => $request->nik,
+            'nip' => $request->nip,
             'name' => $request->name,
             'username' => $username,
             'email' => $request->nik . '@absensi.local', // Dummy email untuk kompatibilitas
             'password' => Hash::make('123456'), // Password default = 123456
             'role' => 'user',
+            'jenis' => $request->has('jenis') ? $request->boolean('jenis') : true,
         ]);
 
         return redirect()->route('admin.employees.index')->with('success', "Karyawan berhasil ditambahkan! Username: {$username}, Password default: 123456");
@@ -87,7 +91,9 @@ class EmployeeController extends Controller
 
         $request->validate([
             'nik' => 'required|string|unique:users,nik,' . $employee->id,
+            'nip' => 'nullable|string|max:255',
             'name' => 'required|string|max:255',
+            'jenis' => 'nullable|boolean',
         ]);
 
         // Generate username from first name (lowercase)
@@ -105,9 +111,11 @@ class EmployeeController extends Controller
 
         $employee->update([
             'nik' => $request->nik,
+            'nip' => $request->nip,
             'name' => $request->name,
             'username' => $username,
             'email' => $request->nik . '@absensi.local', // Update email dummy
+            'jenis' => $request->has('jenis') ? $request->boolean('jenis') : $employee->jenis,
         ]);
 
         return redirect()->route('admin.employees.index')->with('success', 'Data karyawan berhasil diperbarui!');
@@ -135,5 +143,21 @@ class EmployeeController extends Controller
         ]);
 
         return redirect()->route('admin.employees.index')->with('success', "Password karyawan {$employee->name} berhasil direset menjadi 123456!");
+    }
+
+    /**
+     * Toggle jenis (dihitung di dashboard). Dipanggil dari checkbox di tabel karyawan.
+     */
+    public function toggleJenis(Request $request, User $employee)
+    {
+        if ($employee->role !== 'user') {
+            return redirect()->route('admin.employees.index')->with('error', 'Akses ditolak!');
+        }
+
+        $employee->update([
+            'jenis' => $request->boolean('jenis'),
+        ]);
+
+        return redirect()->route('admin.employees.index')->with('success', 'Jenis karyawan berhasil diperbarui!');
     }
 }

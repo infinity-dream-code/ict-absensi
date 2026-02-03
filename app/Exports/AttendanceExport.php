@@ -38,7 +38,7 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
         // Filter by year and month
         if (isset($this->filters['year']) && isset($this->filters['month'])) {
             $query->whereYear('attendance_date', $this->filters['year'])
-                  ->whereMonth('attendance_date', $this->filters['month']);
+                ->whereMonth('attendance_date', $this->filters['month']);
         }
 
         // Filter by work type
@@ -46,12 +46,12 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
             $query->where('work_type', $this->filters['work_type']);
         }
 
-        // Search by name or NIK
+        // Search by name or NIP
         if (isset($this->filters['search']) && $this->filters['search']) {
             $search = $this->filters['search'];
-            $query->whereHas('user', function($q) use ($search) {
+            $query->whereHas('user', function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('nik', 'like', "%{$search}%");
+                    ->orWhere('nip', 'like', "%{$search}%");
             });
         }
 
@@ -62,7 +62,7 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
         });
         $result = $grouped->map(function ($items) {
             $earliest = $items->sortBy('check_in')->first();
-            $latestCheckOut = $items->filter(fn ($a) => $a->check_out)->max('check_out');
+            $latestCheckOut = $items->filter(fn($a) => $a->check_out)->max('check_out');
             if ($latestCheckOut !== null) {
                 $earliest->setAttribute('check_out', $latestCheckOut);
             }
@@ -81,7 +81,7 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
     {
         return [
             'Tanggal',
-            'NIK',
+            'NIP',
             'Nama',
             'Jenis Kerja',
             'Jam Masuk',
@@ -100,7 +100,7 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
         $settings = Setting::getSettings();
         $checkInEnd = Carbon::parse($attendance->attendance_date->format('Y-m-d') . ' ' . ($settings->check_in_end ?: '09:00:00'), 'Asia/Jakarta');
         $checkInTime = $attendance->check_in ? Carbon::parse($attendance->check_in, 'Asia/Jakarta') : null;
-        
+
         // Determine status
         $status = '-';
         if ($checkInTime) {
@@ -116,7 +116,7 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping, Wit
 
         return [
             $attendance->attendance_date->format('d/m/Y'),
-            $attendance->user->nik,
+            $attendance->user->nip ?? '-',
             $attendance->user->name,
             $attendance->work_type,
             $attendance->check_in ? Carbon::parse($attendance->check_in, 'Asia/Jakarta')->format('H:i:s') : '-',
