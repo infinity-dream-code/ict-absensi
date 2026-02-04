@@ -626,9 +626,26 @@
                     <td style="font-weight: 600;">{{ $attendance->user->nip ?? '-' }}</td>
                     <td>{{ $attendance->user->name }}</td>
                     <td>
-                        <span class="badge badge-{{ strtolower($attendance->work_type) }}">
-                            {{ $attendance->work_type }}
-                        </span>
+                        @php
+                            // Jika ada beberapa log dengan status berbeda, tampilkan progres (WFA → WFO)
+                            $workTypeDisplay = $attendance->work_type;
+                            if ($attendance->logs && $attendance->logs->count() > 1) {
+                                $orderedStatuses = $attendance->logs->sortBy('check_in_time')->pluck('status')->unique()->values();
+                                if ($orderedStatuses->count() > 1) {
+                                    $workTypeDisplay = $orderedStatuses->implode(' → ');
+                                }
+                            }
+                        @endphp
+                        @if(strpos($workTypeDisplay, ' → ') !== false)
+                            <span style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center;">
+                                @foreach(explode(' → ', $workTypeDisplay) as $wt)
+                                    <span class="badge badge-{{ strtolower($wt) }}">{{ $wt }}</span>
+                                    @if(!$loop->last)<span style="color: #9ca3af; font-size: 0.85em;">→</span>@endif
+                                @endforeach
+                            </span>
+                        @else
+                            <span class="badge badge-{{ strtolower($workTypeDisplay) }}">{{ $workTypeDisplay }}</span>
+                        @endif
                     </td>
                     <td>
                         @if($attendance->check_in)

@@ -73,7 +73,7 @@ class AttendanceController extends Controller
         }
 
         $locationName = null;
-        
+
         // Get location name via reverse geocoding if latitude and longitude are available
         if ($request->latitude && $request->longitude) {
             try {
@@ -173,10 +173,10 @@ class AttendanceController extends Controller
                 $existing->update($data);
                 $attendance = $existing;
             } else {
-                // Absen kedua dan seterusnya: JANGAN update record utama, hanya tambah ke log
-                // Check-in yang dipakai tetap yang paling awal (jam 9), jam 12 hanya ke log
+                // Absen kedua dan seterusnya: hanya update work_type di record utama ke yang terakhir (WFO)
+                // check_in / check_out TIDAK diubah (tetap jam pertama). Log tetap ada (WFA lalu WFO)
+                $existing->update(['work_type' => $request->work_type]);
                 $attendance = $existing;
-                // Tidak update $existing sama sekali
             }
         } else {
             // First check-in of the day
@@ -195,7 +195,7 @@ class AttendanceController extends Controller
             'location_name' => $locationName,
             'image' => $imageUrl,
         ];
-        
+
         AttendanceLog::create($logData);
 
         $message = 'Check-in berhasil!';
@@ -238,7 +238,7 @@ class AttendanceController extends Controller
     private function getLocationName($latitude, $longitude)
     {
         $url = "https://nominatim.openstreetmap.org/reverse?format=json&lat={$latitude}&lon={$longitude}&zoom=18&addressdetails=1";
-        
+
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -247,26 +247,26 @@ class AttendanceController extends Controller
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Accept-Language: id,en'
         ]);
-        
+
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
-        
+
         if ($httpCode !== 200 || !$response) {
             return null;
         }
-        
+
         $data = json_decode($response, true);
-        
+
         if (!$data || !isset($data['address'])) {
             return null;
         }
-        
+
         $address = $data['address'];
         $locationParts = [];
-        
+
         // Helper function to check if string is RW/RT or just a number
-        $isRWRTOrNumber = function($str) {
+        $isRWRTOrNumber = function ($str) {
             $str = trim($str);
             // Check if it's RW, RT, or just numbers
             if (preg_match('/^(RW|RT)[\s\-]?\d+/i', $str)) {
@@ -278,7 +278,7 @@ class AttendanceController extends Controller
             }
             return false;
         };
-        
+
         // 1. Village/Kelurahan (prioritas utama untuk area)
         // Skip quarter/residential karena biasanya RW/RT
         if (isset($address['village']) && !$isRWRTOrNumber($address['village'])) {
@@ -292,7 +292,7 @@ class AttendanceController extends Controller
             // Quarter hanya jika bukan RW/RT
             $locationParts[] = $address['quarter'];
         }
-        
+
         // 2. City/Kota atau Town
         if (isset($address['city'])) {
             $locationParts[] = $address['city'];
@@ -301,21 +301,21 @@ class AttendanceController extends Controller
         } elseif (isset($address['municipality'])) {
             $locationParts[] = $address['municipality'];
         }
-        
+
         // 3. Province/Provinsi
         if (isset($address['state'])) {
             $locationParts[] = $address['state'];
         } elseif (isset($address['region'])) {
             $locationParts[] = $address['region'];
         }
-        
+
         // Jika belum dapat village/kelurahan, coba parse dari display_name
         // Biasanya format: "Road, Village/Kelurahan, Kecamatan, City, Province"
         if (empty($locationParts) && isset($data['display_name'])) {
             $displayName = $data['display_name'];
             $parts = explode(',', $displayName);
             $cleanedParts = [];
-            
+
             foreach ($parts as $part) {
                 $part = trim($part);
                 // Skip jika kosong, RW/RT, atau angka saja
@@ -332,13 +332,13 @@ class AttendanceController extends Controller
                 }
                 $cleanedParts[] = $part;
             }
-            
+
             // Cari village/kelurahan (biasanya bagian ke-2 atau ke-3 setelah road)
             // Format umum: "Jl. X, Lempongsari, Kecamatan Y, Kota Semarang, Jawa Tengah"
             $village = null;
             $city = null;
             $province = null;
-            
+
             foreach ($cleanedParts as $index => $part) {
                 // Cari village (biasanya tidak mengandung "Kota", "Kecamatan", "Jl", "Jalan")
                 if (!$village && !preg_match('/\b(kota|kabupaten|kecamatan|kab|kec|jl|jalan|street|road|kota|semarang)\b/i', $part)) {
@@ -346,47 +346,47 @@ class AttendanceController extends Controller
                         $village = $part;
                     }
                 }
-                
+
                 // Cari city (biasanya mengandung "Kota" atau nama kota besar)
                 if (!$city && preg_match('/\b(kota|semarang|surabaya|jakarta|bandung|yogyakarta|malang)\b/i', $part)) {
                     $city = $part;
                 }
-                
+
                 // Cari province (biasanya "Jawa Tengah", "Jawa Barat", dll)
                 if (!$province && preg_match('/\b(jawa|sumatera|kalimantan|sulawesi|bali|ntb|ntt|papua)\b/i', $part)) {
                     $province = $part;
                 }
             }
-            
+
             // Rebuild dengan format yang benar
             if ($village || $city || $province) {
                 $locationParts = [];
                 if ($village) $locationParts[] = $village;
                 if ($city) $locationParts[] = $city;
                 if ($province) $locationParts[] = $province;
-                
+
                 if (!empty($locationParts)) {
                     return implode(', ', $locationParts);
                 }
             }
-            
+
             // Fallback: ambil 2-3 bagian tengah (biasanya area, city, province)
             if (count($cleanedParts) >= 2) {
                 $startIdx = min(1, count($cleanedParts) - 2); // Mulai dari index 1 (skip road jika ada)
                 $endIdx = min($startIdx + 3, count($cleanedParts));
                 $relevantParts = array_slice($cleanedParts, $startIdx, $endIdx - $startIdx);
-                
+
                 if (!empty($relevantParts)) {
                     return implode(', ', $relevantParts);
                 }
             }
         }
-        
+
         // Return locationParts jika sudah ada
         if (!empty($locationParts)) {
             return implode(', ', $locationParts);
         }
-        
+
         return null;
     }
 
